@@ -7,7 +7,7 @@ import { normalizeLon } from '@/lib/geo';
 import { CURATED_SITES } from '@/lib/siteRegistry';
 import { OVERLAY_LAYERS } from '@/lib/wmtsTileLoader';
 import { useMissionStore, type SceneStatus } from '@/store/useMissionStore';
-import { AskAiButton } from './MissionChat';
+import { CapcomButton } from '@/components/AssistantPanel';
 import type { LayerId } from '@/types/mission';
 
 const LAYER_OPTIONS: { id: LayerId; label: string }[] = [
@@ -226,7 +226,7 @@ export function TopCommandPill() {
 
         <SceneStatusDot scene={s.scene} />
 
-        <AskAiButton />
+        <CapcomButton />
 
         <button
           type="button"

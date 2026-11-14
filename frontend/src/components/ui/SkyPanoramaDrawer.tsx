@@ -31,6 +31,7 @@ export function SkyPanoramaDrawer() {
 
   return (
     <section
+      data-highlight-target={tab === 'CALENDAR' && isOpen ? 'calendar' : undefined}
       className={`${PANEL} fixed bottom-3 left-3 right-3 z-30 flex flex-col overflow-hidden rounded-2xl shadow-2xl shadow-black/60 transition-[height] duration-300 lg:right-[424px]`}
       style={{ height: isOpen ? 'var(--drawer-open-h)' : '48px' }}
       aria-label="Sky panorama and analytics"

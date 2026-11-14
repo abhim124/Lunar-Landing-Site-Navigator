@@ -2,11 +2,12 @@
 
 import dynamic from 'next/dynamic';
 import { useEffect, type CSSProperties } from 'react';
-import { MissionChat } from '@/components/ui/MissionChat';
+import { AssistantPanel } from '@/components/AssistantPanel';
 import { SkyPanoramaDrawer } from '@/components/ui/SkyPanoramaDrawer';
 import { TopCommandPill } from '@/components/ui/TopCommandPill';
 import { VerdictCard } from '@/components/ui/VerdictCard';
 import { useUrlSync } from '@/hooks/useUrlSync';
+import { useAssistantStore } from '@/store/useAssistantStore';
 import { useMissionStore } from '@/store/useMissionStore';
 
 // WebGL must never render on the server.
@@ -20,6 +21,7 @@ export default function MissionPage() {
   const hasSite = useMissionStore((s) => s.selectedSite !== null);
   const drawerOpen = useMissionStore((s) => s.isDrawerOpen);
   const drawerTab = useMissionStore((s) => s.activeDrawerTab);
+  const assistantOpen = useAssistantStore((s) => s.isOpen);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -37,16 +39,22 @@ export default function MissionPage() {
   } as CSSProperties;
 
   return (
-    <main className="fixed inset-0 overflow-hidden bg-[#020308] text-slate-100" style={layoutVars}>
-      <LunarGlobe />
-      <TopCommandPill />
-      <MissionChat />
-      {hasSite && (
-        <>
-          <VerdictCard />
-          <SkyPanoramaDrawer />
-        </>
-      )}
-    </main>
+    <>
+      <main
+        className="llsn-main fixed inset-0 overflow-hidden bg-[#020308] text-slate-100"
+        data-assistant={assistantOpen ? 'open' : 'closed'}
+        style={layoutVars}
+      >
+        <LunarGlobe />
+        <TopCommandPill />
+        {hasSite && (
+          <>
+            <VerdictCard />
+            <SkyPanoramaDrawer />
+          </>
+        )}
+      </main>
+      <AssistantPanel />
+    </>
   );
 }

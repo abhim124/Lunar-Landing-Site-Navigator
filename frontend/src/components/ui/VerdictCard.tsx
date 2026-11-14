@@ -93,7 +93,11 @@ export function VerdictCard() {
           </button>
         </div>
         <div className="mt-2.5 flex flex-wrap items-center gap-2">
-          {ev ? <StatusPill status={ev.overall_status} size="lg" /> : <span className="h-7 w-24 animate-pulse rounded-full bg-slate-800" />}
+          {ev ? (
+            <span data-highlight-target="verdict" className="inline-flex rounded-full">
+              <StatusPill status={ev.overall_status} size="lg" />
+            </span>
+          ) : <span className="h-7 w-24 animate-pulse rounded-full bg-slate-800" />}
           {status === 'loading' && <span className="text-[11px] text-slate-400">computing…</span>}
           {ev && <InfoButton open={headerInfo.open} onToggle={headerInfo.toggle} controls={headerInfo.id} label="evaluation details" />}
         </div>
@@ -149,14 +153,16 @@ export function VerdictCard() {
             {(ev.overall_status !== 'GO' || altStatus !== 'idle') && <NearestAlternativeCard />}
 
             <Section title="Illumination & Comms">
-              <MetricTile label="Sunlit" metric={ev.illumination.sunlit_pct} display={fmtNum(ev.illumination.sunlit_pct.value, 1)} learn={learnMode ? 'sunlit' : null} />
+              <MetricTile target="power" label="Sunlit" metric={ev.illumination.sunlit_pct} display={fmtNum(ev.illumination.sunlit_pct.value, 1)} learn={learnMode ? 'sunlit' : null} />
               <MetricTile
+                target="power"
                 label="Longest darkness"
                 metric={ev.illumination.longest_darkness_hours}
                 display={fmtNum(ev.illumination.longest_darkness_hours.value, 1)}
                 learn={learnMode ? 'darkness' : null}
               />
               <MetricTile
+                target="power"
                 label="Time to sunset"
                 metric={ev.illumination.time_to_sunset_hours}
                 display={ev.illumination.time_to_sunset_hours.value == null ? 'None' : fmtHours(ev.illumination.time_to_sunset_hours.value)}
@@ -165,6 +171,7 @@ export function VerdictCard() {
                 learn={learnMode ? 'sunset' : null}
               />
               <MetricTile
+                target="comms"
                 label="Time to Earthset"
                 metric={ev.illumination.time_to_earthset_hours}
                 display={ev.illumination.time_to_earthset_hours.value == null ? 'None' : fmtHours(ev.illumination.time_to_earthset_hours.value)}
@@ -173,6 +180,7 @@ export function VerdictCard() {
                 learn={learnMode ? 'earthset' : null}
               />
               <MetricTile
+                target="comms"
                 wide
                 label={`Earth contact ≥ ${minEl}°`}
                 metric={ev.illumination.earth_contact_pct}
@@ -271,6 +279,7 @@ function MetricTile({
   wide = false,
   hideUnit = false,
   bar,
+  target,
 }: {
   label: string;
   metric: MetricWithSource<number | null>;
@@ -280,11 +289,13 @@ function MetricTile({
   wide?: boolean;
   hideUnit?: boolean;
   bar?: { value: number; max: number; marks?: number[] };
+  /** Assistant highlight group (data-highlight-target). */
+  target?: 'power' | 'comms';
 }) {
   const st = STATUS_STYLES[metric.status];
   const info = useInfo();
   return (
-    <div className={`rounded-xl border border-slate-800/80 bg-slate-900/50 p-2.5 ${wide ? 'col-span-2' : ''}`}>
+    <div data-highlight-target={target} className={`rounded-xl border border-slate-800/80 bg-slate-900/50 p-2.5 ${wide ? 'col-span-2' : ''}`}>
       <div className="flex items-center justify-between gap-2">
         <span className="text-[10px] font-medium uppercase tracking-wide text-slate-400">{label}</span>
         <span className="flex items-center gap-1.5">
