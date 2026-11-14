@@ -1,0 +1,54 @@
+@import 'tailwindcss';
+
+@theme {
+  --font-sans: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Inter, Roboto, sans-serif;
+  --font-mono: ui-monospace, 'SF Mono', 'JetBrains Mono', Menlo, Consolas, monospace;
+}
+
+html,
+body {
+  height: 100%;
+  margin: 0;
+  background: #020308;
+  color: #e2e8f0;
+  overscroll-behavior: none;
+}
+
+body {
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Range sliders (antenna cutoff, timeline scrubber) */
+.llsn-range {
+  appearance: none;
+  height: 4px;
+  border-radius: 999px;
+  background: #1e293b;
+  cursor: pointer;
+}
+.llsn-range::-webkit-slider-thumb {
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 999px;
+  background: #e0f2fe;
+  border: 2px solid #0ea5e9;
+  box-shadow: 0 0 0 3px rgb(14 165 233 / 0.2);
+}
+.llsn-range::-moz-range-thumb {
+  width: 12px;
+  height: 12px;
+  border-radius: 999px;
+  background: #e0f2fe;
+  border: 2px solid #0ea5e9;
+}
+.llsn-range:focus-visible {
+  outline: 2px solid #38bdf8;
+  outline-offset: 4px;
+}
+
+.llsn-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: #334155 transparent;
+}
