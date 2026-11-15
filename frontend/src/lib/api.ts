@@ -6,6 +6,7 @@ import type {
   SiteEvaluationRequest,
   SiteEvaluationResponse,
   SlopeStatsResponse,
+  PsrCheckResponse,
   ValidationBenchmarkResponse,
   ValidationRequest,
 } from '@/types/mission';
@@ -91,6 +92,9 @@ export const api = {
 
   nearbyWindows: (params: NearbyWindowsRequest, signal?: AbortSignal) =>
     requestJson<NearbyWindowsResponse>(`/api/nearby-windows?${qs(params)}`, { signal }),
+
+  psrCheck: (params: { lat: number; lon: number }, signal?: AbortSignal) =>
+    requestJson<PsrCheckResponse>(`/api/psr/check?${qs(params)}`, { signal }),
 
   slopeStats: (params: { lat: number; lon: number; radius_m: number }, signal?: AbortSignal) =>
     requestJson<SlopeStatsResponse>(`/api/terrain/slope-stats?${qs(params)}`, { signal }),

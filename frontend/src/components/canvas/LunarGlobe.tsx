@@ -36,7 +36,7 @@ import {
   surfaceRadius,
   useTerrainVersion,
 } from '@/lib/terrainHeight';
-import { OVERLAY_LAYERS, loadCgiMoonKitTexture, loadOverlayTexture } from '@/lib/wmtsTileLoader';
+import { OVERLAY_LAYERS, loadCgiMoonKitTexture, loadOverlayTexture, loadPsrMaskTexture } from '@/lib/wmtsTileLoader';
 import { SEARCH_RADIUS_KM, useMissionStore } from '@/store/useMissionStore';
 
 const INITIAL_CAMERA: [number, number, number] = [0, -2.55, 1.3];
@@ -118,6 +118,25 @@ function useLunarSurfaceUniforms(): LunarUniforms {
     };
   }, [setSceneStatus]);
 
+  // Always-on permanently-shadowed-region outline (PGDA LPSR + 500 m buffer).
+  const psrTarget = useRef(0);
+  useEffect(() => {
+    let alive = true;
+    loadPsrMaskTexture(gl.capabilities.getMaxAnisotropy())
+      .then(({ texture, boundsM }) => {
+        if (!alive) return;
+        uniforms.uPsrMap.value = texture;
+        uniforms.uPsrBounds.value.set(...boundsM);
+        psrTarget.current = 1;
+      })
+      .catch(() => {
+        /* backend offline: the globe still works without the PSR outline */
+      });
+    return () => {
+      alive = false;
+    };
+  }, [gl, uniforms]);
+
   // Moon Trek WMTS overlay.
   useEffect(() => {
     if (activeLayer === 'BASE_CGI') {
@@ -154,6 +173,8 @@ function useLunarSurfaceUniforms(): LunarUniforms {
   useFrame((_, dt) => {
     const u = uniforms.uOverlayMix;
     u.value += (overlayTarget.current - u.value) * (1 - Math.exp(-dt * 4));
+    const p = uniforms.uPsrMix;
+    p.value += (psrTarget.current - p.value) * (1 - Math.exp(-dt * 4));
   });
 
   return uniforms;

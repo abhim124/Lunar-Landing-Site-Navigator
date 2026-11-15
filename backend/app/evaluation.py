@@ -24,6 +24,7 @@ from .diviner import rock_abundance_pct, surface_temperature
 from .ephemeris import SPICE_SOURCE, EphemerisEngine, TopoSeries, iso_z, parse_utc
 from .registry import ARTEMIS_BY_ID
 from .terrain import OBSERVER_HEIGHT_M, Skyline, compute_skyline, great_circle_km, tag, terrain_at
+from .psr_guard import PSR_BUFFER_M, psr_status
 
 SUN_RADIUS_DEG = 0.266
 ORDER = {"GO": 0, "MARGINAL": 1, "NO-GO": 2}
@@ -167,9 +168,16 @@ def evaluate_site(req) -> dict:
             region = f"{a['name']} (≈ region centre)"
     approx = bool(req.region_id in ARTEMIS_BY_ID)
 
+    # Landing inside a permanently shadowed region is NO-GO; inside the 500 m buffer is MARGINAL.
+    in_psr, psr_km_now, _ = psr_status(lat, lon)
+    psr_land_status = "NO-GO" if in_psr else ("MARGINAL" if psr_km_now is not None and psr_km_now * 1000 < PSR_BUFFER_M else "GO")
     overall = worst(st["sunlit"], st["darkness"], st["earth"], slope_status, rough_status,
-                    cap_marginal(st["sunset"]), cap_marginal(st["earthset"]))
+                    cap_marginal(st["sunset"]), cap_marginal(st["earthset"]), psr_land_status)
     reasons: list[str] = []
+    if psr_land_status == "NO-GO":
+        reasons.append("Pad is inside a permanently shadowed region (no sunlight, ~40 K ground)")
+    elif psr_land_status == "MARGINAL":
+        reasons.append(f"Pad is {psr_km_now * 1000:.0f} m from a permanently shadowed region (keep ≥ {PSR_BUFFER_M:.0f} m)")
     if st["sunlit"] != "GO":
         reasons.append(f"Sunlit {wm.sunlit_pct:.0f}% of the mission (GO ≥ 70%)")
     if st["darkness"] != "GO":

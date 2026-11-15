@@ -22,6 +22,7 @@ from .cache import GridStore
 from .ephemeris import iso_z, parse_utc
 from .evaluation import ORDER
 from .optimizer import _composite, _evaluate_pad, _stage1_polar
+from .psr_guard import PSR_BUFFER_M
 from .registry import ARTEMIS_III
 from .terrain import great_circle_km, stereo_forward, stereo_inverse
 
@@ -45,11 +46,12 @@ def _global_candidates(n: int) -> list[tuple[float, float]]:
     av = np.asarray(g.avg_vis.data[vr, vc], dtype=np.float32)
     ev = np.asarray(g.earth_vis.data[vr, vc], dtype=np.float32)
     ps = np.asarray(g.psr.data[vr, vc], dtype=np.float32)
+    pd = np.asarray(g.psr_distance.data[vr, vc], dtype=np.float32) if g.psr_distance is not None else np.full_like(ps, 99.0)
 
     # radius of MAX_LAT on the stereographic plane
     rmax = float(np.hypot(*stereo_forward(MAX_LAT, 0.0)))
     inside = np.hypot(x, y) <= rmax
-    ok = inside & np.isfinite(sub) & (sub <= 10.0) & (ps < 0.5) & np.isfinite(av) & np.isfinite(ev)
+    ok = inside & np.isfinite(sub) & (sub <= 10.0) & (ps < 0.5) & (pd >= PSR_BUFFER_M / 1000 + 0.15) & np.isfinite(av) & np.isfinite(ev)
     score = np.where(ok, 0.55 * av + 0.35 * ev - 0.10 * sub / 15.0, -np.inf)
 
     flat = np.argsort(score, axis=None)[::-1]

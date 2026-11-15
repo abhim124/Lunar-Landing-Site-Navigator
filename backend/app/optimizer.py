@@ -20,6 +20,7 @@ from datetime import timedelta
 import numpy as np
 
 from .cache import GridStore
+from .psr_guard import psr_buffer_mask
 from .ephemeris import SPICE_SOURCE, EphemerisEngine, iso_z, parse_utc
 from .evaluation import ORDER, grade, visibility, window_metrics, worst
 from .terrain import (
@@ -69,6 +70,10 @@ def _stage1_polar(lat: float, lon: float, radius_km: float, max_slope: float = 1
     px, py = store.avg_vis.xy(rr + r0, cc + c0)
     dist_km = np.hypot(px - x, py - y) / 1000.0
     mask = (dist_km <= radius_km) & (dist_km > 0.12) & (sl <= max_slope) & (ps < 0.5)
+    buf = psr_buffer_mask(x, y, half)  # keep candidates ≥ 500 m from any permanently shadowed region
+    if buf is not None:
+        b = buf[0][:n, :m]
+        mask[: b.shape[0], : b.shape[1]] &= b
     w_sun, w_earth, w_slope = weights
     score = np.where(mask, w_sun * av + w_earth * ev - w_slope * sl / 15.0, -np.inf)
     picks: list[tuple[float, float]] = []

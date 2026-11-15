@@ -162,6 +162,24 @@ const padSummary = (p: BestSitePad) => ({
   location: p.nearest_region_km < 2 ? p.nearest_region : `${r1(p.nearest_region_km)} km from ${p.nearest_region}`,
 });
 
+/** PSR landing rule: the app relocates pads inside / within 500 m of a permanently shadowed region. */
+async function psrNote(lat: number, lon: number): Promise<Record<string, unknown> | undefined> {
+  try {
+    const r = await backend<{ safe: boolean; in_psr: boolean; psr_distance_km: number | null; nearest_safe: { lat: number; lon: number; distance_km: number; bearing_deg: number } | null }>(
+      `/api/psr/check?lat=${lat}&lon=${lon}`,
+    );
+    if (r.safe) return undefined;
+    return {
+      psr_warning: r.in_psr ? 'requested point is INSIDE a permanently shadowed region' : `requested point is ${Math.round((r.psr_distance_km ?? 0) * 1000)} m from a PSR (minimum 500 m)`,
+      app_relocates_to: r.nearest_safe
+        ? { lat: Number(r.nearest_safe.lat.toFixed(4)), lon: Number(r.nearest_safe.lon.toFixed(4)), distance_km: r1(r.nearest_safe.distance_km), bearing_deg: Math.round(r.nearest_safe.bearing_deg) }
+        : 'no safe pad within 40 km',
+    };
+  } catch {
+    return undefined;
+  }
+}
+
 /* ───────────── executor ───────────── */
 
 export async function runAgentTool(
@@ -219,7 +237,12 @@ export async function runAgentTool(
         const label = n ?? 'Custom site';
         actions.push({ type: 'select_site', lat, lon, name: label, epochUTC: ctx.epochUTC });
         ctx.site = { lat, lon, name: label };
-        return json({ moved_to: { name: label, lat, lon }, date: ctx.epochUTC });
+        const psr = await psrNote(lat, lon);
+        if (psr && typeof psr.app_relocates_to === 'object') {
+          const t = psr.app_relocates_to as { lat: number; lon: number };
+          ctx.site = { lat: t.lat, lon: t.lon, name: `Safe pad · ${label}` };
+        }
+        return json({ moved_to: { name: label, lat, lon }, date: ctx.epochUTC, ...psr });
       }
       if (!n) return fail('Give a site name or lat/lon.');
       const site = matchSite(n);

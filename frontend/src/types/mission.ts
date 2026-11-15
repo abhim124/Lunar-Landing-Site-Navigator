@@ -317,3 +317,25 @@ export interface SlopeStatsResponse {
   roughness_rms_m: number;
   source: DataSourceTag;
 }
+
+/** GET /api/psr/check — is a pad clear of permanently shadowed regions (plus buffer)? */
+export interface PsrCheckResponse {
+  lat: number;
+  lon: number;
+  covered: boolean;
+  in_psr: boolean;
+  psr_distance_km: number | null;
+  buffer_m: number;
+  safe: boolean;
+  nearest_safe: {
+    lat: number;
+    lon: number;
+    distance_km: number;
+    bearing_deg: number;
+    psr_distance_km: number;
+    slope_deg: number | null;
+    avg_sun_visibility_pct: number;
+    criteria: string;
+  } | null;
+  source: string;
+}

@@ -71,10 +71,31 @@ def _render_earth_vis() -> np.ndarray:
     return np.concatenate([rgb, np.full((*vis.shape, 1), 255.0)], axis=-1)
 
 
+def _render_psr_mask() -> np.ndarray:
+    """Always-on PSR outline: violet tint inside PSRs, bright violet rim, faint amber 500 m no-landing buffer."""
+    store = GridStore.get()
+    psr = _crop_to_ldem(store.psr) > 0.5
+    dist = _crop_to_ldem(store.psr_distance)
+    inner = psr.copy()
+    for dy, dx in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+        inner &= np.roll(np.roll(psr, dy, axis=0), dx, axis=1)
+    edge = psr & ~inner
+    thick = edge.copy()
+    for dy, dx in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+        thick |= np.roll(np.roll(edge, dy, axis=0), dx, axis=1)
+    buffer = ~psr & (dist < 0.5)
+    rgba = np.zeros((*psr.shape, 4), dtype=np.float32)
+    rgba[buffer] = (255, 190, 90, 70)
+    rgba[psr] = (120, 100, 255, 110)
+    rgba[thick] = (200, 185, 255, 255)
+    return rgba
+
+
 OVERLAYS = {
     "lola_relief": (_render_relief, "ldem", "LOLA LDEM_75S_240M colour-shaded relief"),
     "pgda_sun_vis": (_render_sun_vis, "avg_vis", "PGDA AVGVISIB_65S_240M (Sun) + LPSR"),
     "pgda_earth_vis": (_render_earth_vis, "earth_vis", "PGDA AVGVISIB_65S_240M_EARTH"),
+    "psr_mask": (_render_psr_mask, "psr", "PGDA LPSR_65S_240M permanently shadowed regions + 500 m buffer"),
 }
 
 

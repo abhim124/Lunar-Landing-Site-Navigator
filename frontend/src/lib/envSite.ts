@@ -20,7 +20,8 @@ const SHACKLETON_FLOOR = { lat: -89.67, lon: 129.8 };
 
 export function selectEnvPreset(id: string) {
   const m = useMissionStore.getState();
-  if (id === 'shackleton-floor') m.selectSite({ ...SHACKLETON_FLOOR, name: 'Shackleton Crater Floor (PSR, ≈)', regionId: null });
+  // Comparison only: the PSR floor is shown with a warning, never accepted as a landing pad.
+  if (id === 'shackleton-floor') m.selectSite({ ...SHACKLETON_FLOOR, name: 'Shackleton Crater Floor (PSR, ≈)', regionId: null }, { allowPsr: true, psrView: true });
   else m.selectCuratedSite(id);
 }
 

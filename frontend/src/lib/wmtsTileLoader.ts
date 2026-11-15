@@ -207,6 +207,25 @@ async function loadBackendOverlay(cfg: BackendLayer, opts: { signal?: AbortSigna
   };
 }
 
+/** Always-on permanently-shadowed-region outline (backend `psr_mask` overlay), loaded once. */
+let psrMaskPromise: Promise<{ texture: THREE.Texture; boundsM: Bounds }> | null = null;
+export function loadPsrMaskTexture(anisotropy = 4): Promise<{ texture: THREE.Texture; boundsM: Bounds }> {
+  if (!psrMaskPromise) {
+    psrMaskPromise = (async () => {
+      const urls = overlayUrls('psr_mask');
+      const res = await fetchWithTimeout(urls.meta, 10_000);
+      if (!res.ok) throw new Error(`PSR overlay metadata HTTP ${res.status}`);
+      const meta = (await res.json()) as { bounds_m: Bounds };
+      const image = await loadImage(urls.png, undefined, 60_000);
+      return { texture: finishTexture(image, anisotropy), boundsM: meta.bounds_m };
+    })().catch((err) => {
+      psrMaskPromise = null; // allow a retry on the next mount
+      throw err;
+    });
+  }
+  return psrMaskPromise;
+}
+
 export async function loadOverlayTexture(
   layerId: OverlayLayerId,
   opts: { signal?: AbortSignal; anisotropy?: number; onProgress?: (done: number, total: number) => void } = {},

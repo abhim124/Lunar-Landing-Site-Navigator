@@ -23,6 +23,7 @@ from .ephemeris import SPICE_SOURCE, EphemerisEngine, horizons_azel, iso_z, pars
 from .evaluation import evaluate_site, launch_calendar
 from .best_site import best_site
 from .contingency import assess_contingency
+from .psr_guard import PSR_BUFFER_M, psr_check
 from .nearby_windows import nearby_windows
 from .optimizer import nearest_alternative
 from .registry import BENCHMARKS
@@ -168,6 +169,16 @@ async def slope_stats_route(
     """Slope at the pad, mean / max slope and RMS roughness within a radius, from the best LOLA DEM."""
     lon = (lon + 180) % 360 - 180
     return await to_thread.run_sync(slope_stats, lat, lon, radius_m)
+
+
+@app.get("/api/psr/check")
+async def psr_check_route(
+    lat: float = Query(ge=-90, le=90),
+    lon: float = Query(ge=-360, le=360),
+    buffer_m: float = Query(PSR_BUFFER_M, ge=0, le=5000),
+) -> dict:
+    """Is this pad outside every permanently shadowed region (plus buffer)? If not, the nearest safe pad."""
+    return await to_thread.run_sync(psr_check, lat, lon, buffer_m)
 
 
 @app.get("/api/space-weather", response_model=SpaceWeatherStatus)

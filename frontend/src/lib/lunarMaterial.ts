@@ -22,6 +22,10 @@ export interface LunarUniforms {
   uOverlayMaxLat: THREE.IUniform<number>;
   uMoonRadiusM: THREE.IUniform<number>;
   uOverlayEmissive: THREE.IUniform<number>;
+  /** Always-on permanently shadowed region outline (PGDA LPSR) in South Polar Stereographic space. */
+  uPsrMap: THREE.IUniform<THREE.Texture | null>;
+  uPsrMix: THREE.IUniform<number>;
+  uPsrBounds: THREE.IUniform<THREE.Vector4>;
 }
 
 export function createLunarUniforms(): LunarUniforms {
@@ -34,6 +38,9 @@ export function createLunarUniforms(): LunarUniforms {
     uOverlayMaxLat: { value: -65 },
     uMoonRadiusM: { value: MOON_RADIUS_M },
     uOverlayEmissive: { value: 0.4 },
+    uPsrMap: { value: null },
+    uPsrMix: { value: 0 },
+    uPsrBounds: { value: new THREE.Vector4(-1, -1, 1, 1) },
   };
 }
 
@@ -46,6 +53,9 @@ uniform vec4 uSpBounds;
 uniform float uOverlayMaxLat;
 uniform float uMoonRadiusM;
 uniform float uOverlayEmissive;
+uniform sampler2D uPsrMap;
+uniform float uPsrMix;
+uniform vec4 uPsrBounds;
 varying vec3 vSelDir;
 
 vec4 lunarSampleEquirect(sampler2D tex, vec3 d) {
@@ -81,6 +91,17 @@ if (uOverlayMix > 0.001) {
   diffuseColor.rgb = mix(diffuseColor.rgb, ov.rgb, a);
   totalEmissiveRadiance += ov.rgb * a * uOverlayEmissive;
 }
+if (uPsrMix > 0.001 && lunarDir.y < -0.9) {
+  // PSRs are always dark, so the outline is partly self-lit to stay visible in shadow.
+  float pd = max(1.0 - lunarDir.y, 1e-6);
+  vec2 pxy = 2.0 * uMoonRadiusM * vec2(lunarDir.x, lunarDir.z) / pd;
+  vec2 puv = (pxy - uPsrBounds.xy) / (uPsrBounds.zw - uPsrBounds.xy);
+  float pin = step(0.0, puv.x) * step(puv.x, 1.0) * step(0.0, puv.y) * step(puv.y, 1.0);
+  vec4 ps = texture(uPsrMap, clamp(puv, 0.0, 1.0));
+  float pa = uPsrMix * ps.a * pin;
+  diffuseColor.rgb = mix(diffuseColor.rgb, ps.rgb, pa * 0.8);
+  totalEmissiveRadiance += ps.rgb * pa * 0.55;
+}
 `;
 
 export function createLunarMaterial(uniforms: LunarUniforms): THREE.MeshStandardMaterial {
@@ -99,6 +120,6 @@ export function createLunarMaterial(uniforms: LunarUniforms): THREE.MeshStandard
       .replace('#include <common>', `#include <common>\n${FRAGMENT_DECLARATIONS}`)
       .replace('#include <map_fragment>', MAP_FRAGMENT);
   };
-  material.customProgramCacheKey = () => 'lunar-surface-v1';
+  material.customProgramCacheKey = () => 'lunar-surface-v2';
   return material;
 }

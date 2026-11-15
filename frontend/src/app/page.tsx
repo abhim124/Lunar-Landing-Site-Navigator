@@ -10,6 +10,7 @@ import { LearnBlock } from '@/components/ui/LearnBlock';
 import { ANALYTICS_PANEL, CalendarTab, PanoramaTab, ValidationTab, tabButtonClass } from '@/components/ui/SkyPanoramaDrawer';
 import { TopCommandPill } from '@/components/ui/TopCommandPill';
 import { VerdictCard } from '@/components/ui/VerdictCard';
+import { PsrNotice } from '@/components/ui/PsrNotice';
 import { useUrlSync } from '@/hooks/useUrlSync';
 import { useAssistantStore } from '@/store/useAssistantStore';
 import { useMissionStore } from '@/store/useMissionStore';
@@ -41,7 +42,8 @@ export default function MissionPage() {
 
       {/* Zone 2 — verdict strip */}
       {hasSite && (
-        <div className="px-3">
+        <div className="flex flex-col gap-2 px-3">
+          <PsrNotice />
           <VerdictCard />
         </div>
       )}

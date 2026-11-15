@@ -48,6 +48,7 @@ export interface MissionState {
   expert: ExpertSettings;
   /** A launch day CAPCOM picked (e.g. "best date"): the calendar jumps to its month and marks it. Tied to one site. */
   calendarFocus: CalendarFocus | null;
+  psrNotice: PsrNotice | null;
   /** Last slope / roughness statistics fetched for the Expert card (also sent to CAPCOM). */
   slopeStats: SlopeStatsResponse | null;
   activeDrawerTab: DrawerTab;
@@ -76,6 +77,16 @@ export interface MissionState {
   validationKey: string | null;
 }
 
+/** Shown when a chosen pad falls in / near a permanently shadowed region (PSR). */
+export interface PsrNotice {
+  /** moved: auto-relocated to a safe pad · override: user chose to land anyway · view: PSR shown for comparison only · none: no safe pad found */
+  kind: 'moved' | 'override' | 'view' | 'none';
+  clicked: SelectedSite;
+  inPsr: boolean;
+  psrDistanceKm: number | null;
+  to?: { lat: number; lon: number; distanceKm: number; bearingDeg: number; criteria: string };
+}
+
 export interface CalendarFocus {
   date: string;
   label: string;
@@ -97,7 +108,8 @@ export interface UrlHydration {
 }
 
 export interface MissionActions {
-  selectSite: (site: SelectedSite, opts?: { fly?: boolean; evaluate?: boolean; epochUTC?: string }) => void;
+  /** `allowPsr` skips the PSR landing guard (used for "land here anyway" and comparison-only views). */
+  selectSite: (site: SelectedSite, opts?: { fly?: boolean; evaluate?: boolean; epochUTC?: string; allowPsr?: boolean; psrView?: boolean }) => void;
   selectCuratedSite: (id: string) => void;
   selectCustomSite: (lat: number, lon: number) => void;
   clearSelection: () => void;
@@ -111,6 +123,7 @@ export interface MissionActions {
   setExpert: (patch: Partial<ExpertSettings>) => void;
   setSlopeStats: (stats: SlopeStatsResponse | null) => void;
   setCalendarFocus: (focus: CalendarFocus | null) => void;
+  setPsrNotice: (notice: PsrNotice | null) => void;
   setActiveDrawerTab: (tab: DrawerTab) => void;
   setDrawerOpen: (open: boolean) => void;
   setScrubHour: (h: number) => void;
@@ -150,6 +163,39 @@ function scheduleEvaluate(get: () => MissionStore, delayMs = 400) {
   }, delayMs);
 }
 
+/**
+ * PSR landing guard: no pad may sit inside a permanently shadowed region or within 500 m of one.
+ * Runs after every normal selection (map click, typed coordinates, presets, CAPCOM, shared links);
+ * if the pad is unsafe it is moved to the nearest flat, sunlit pad outside the buffer.
+ */
+async function guardPsr(get: () => MissionStore, set: (p: Partial<MissionState>) => void, clicked: SelectedSite) {
+  let r;
+  try {
+    r = await api.psrCheck({ lat: clicked.lat, lon: clicked.lon });
+  } catch {
+    return; // backend offline: the verdict still flags PSRs when it comes back
+  }
+  const now = get().selectedSite;
+  if (!now || Math.abs(now.lat - clicked.lat) > 1e-9 || Math.abs(now.lon - clicked.lon) > 1e-9) return; // user moved on
+  if (r.safe) return;
+  const base = clicked.name.replace(/^(Safe pad|Contingency pad|Nearby pad|Alt\. pad) · /, '');
+  if (!r.nearest_safe) {
+    set({ psrNotice: { kind: 'none', clicked, inPsr: r.in_psr, psrDistanceKm: r.psr_distance_km } });
+    return;
+  }
+  const t = r.nearest_safe;
+  set({
+    psrNotice: {
+      kind: 'moved',
+      clicked,
+      inPsr: r.in_psr,
+      psrDistanceKm: r.psr_distance_km,
+      to: { lat: t.lat, lon: t.lon, distanceKm: t.distance_km, bearingDeg: t.bearing_deg, criteria: t.criteria },
+    },
+  });
+  get().selectSite({ lat: t.lat, lon: t.lon, name: `Safe pad · ${base}`, regionId: null }, { epochUTC: get().epochUTC, fly: true, allowPsr: true });
+}
+
 const isoDate = (iso: string) => iso.slice(0, 10);
 const addDaysIso = (date: string, n: number) =>
   new Date(Date.parse(`${date}T00:00:00Z`) + n * 86_400_000).toISOString().slice(0, 10);
@@ -167,6 +213,7 @@ export const useMissionStore = create<MissionStore>()((set, get) => ({
   expert: DEFAULT_EXPERT,
   slopeStats: null,
   calendarFocus: null,
+  psrNotice: null,
   activeDrawerTab: 'PANORAMA',
   isDrawerOpen: true,
   scrubHour: 0,
@@ -194,7 +241,9 @@ export const useMissionStore = create<MissionStore>()((set, get) => ({
   /* ─────────── selection ─────────── */
 
   selectSite: (site, opts = {}) => {
-    const { fly = true, evaluate = true, epochUTC } = opts;
+    const { fly = true, evaluate = true, epochUTC, allowPsr = false, psrView = false } = opts;
+    // A fresh, guarded selection clears any earlier PSR notice; guard-driven moves keep theirs.
+    if (!allowPsr) set({ psrNotice: null });
     const lat = clamp(site.lat, -90, 90);
     const lon = normalizeLon(site.lon);
     controllers.alternative?.abort();
@@ -213,6 +262,13 @@ export const useMissionStore = create<MissionStore>()((set, get) => ({
     if (evaluate) {
       if (evaluateTimer) clearTimeout(evaluateTimer);
       void get().evaluateSite();
+    }
+    if (psrView) {
+      void api.psrCheck({ lat, lon }).then((r) => {
+        if (!r.safe) set({ psrNotice: { kind: 'view', clicked: { ...site, lat, lon }, inPsr: r.in_psr, psrDistanceKm: r.psr_distance_km } });
+      }).catch(() => undefined);
+    } else if (!allowPsr) {
+      void guardPsr(get, set, { ...site, lat, lon });
     }
   },
 
@@ -269,6 +325,7 @@ export const useMissionStore = create<MissionStore>()((set, get) => ({
   setExpert: (patch) => set((s) => ({ expert: { ...s.expert, ...patch } })),
   setSlopeStats: (stats) => set({ slopeStats: stats }),
   setCalendarFocus: (focus) => set({ calendarFocus: focus }),
+  setPsrNotice: (notice) => set({ psrNotice: notice }),
   setActiveDrawerTab: (tab) => {
     set({ activeDrawerTab: tab, isDrawerOpen: true });
     if (tab === 'CALENDAR') void get().fetchLaunchCalendar();
