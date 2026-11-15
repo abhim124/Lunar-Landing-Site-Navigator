@@ -79,7 +79,7 @@ function rankVoices(all: SpeechSynthesisVoice[]): SpeechSynthesisVoice[] {
 
 /* ───────────── constants ───────────── */
 
-const OFFLINE: AssistantReply = { say: 'Hatfield is offline. Check the status cards.', details: '', action: '', highlight: 'none', error: true };
+const OFFLINE: AssistantReply = { say: 'Hadfield is offline. Check the status cards.', details: '', action: '', highlight: 'none', error: true };
 
 const PHASES: { id: MissionPhase; label: string }[] = [
   { id: 'pre-landing', label: 'Pre-landing' },
@@ -142,14 +142,14 @@ export function CapcomButton() {
       type="button"
       onClick={() => setOpen(!isOpen)}
       aria-expanded={isOpen}
-      aria-label={isOpen ? 'Close Hatfield assistant' : 'Open Hatfield voice assistant'}
-      title="Hatfield voice assistant"
+      aria-label={isOpen ? 'Close Hadfield assistant' : 'Open Hadfield voice assistant'}
+      title="Hadfield voice assistant"
       className={`flex h-8 items-center gap-1.5 rounded-lg px-2.5 text-xs font-semibold ring-1 transition-colors ${
         isOpen ? 'bg-sky-400 text-slate-950 ring-sky-300' : 'bg-sky-500/20 text-sky-200 ring-sky-400/40 hover:bg-sky-500/30'
       }`}
     >
       <MicIcon className="h-4 w-4" />
-      <span className="hidden sm:inline">Hatfield</span>
+      <span className="hidden sm:inline">Hadfield</span>
     </button>
   );
 }
@@ -250,7 +250,7 @@ export function AssistantPanel() {
       recRef.current?.abort();
       return;
     }
-    // Make sure the launch calendar is loaded so Hatfield can quote the best GO windows.
+    // Make sure the launch calendar is loaded so Hadfield can quote the best GO windows.
     const m = useMissionStore.getState();
     if (m.selectedSite) void m.fetchLaunchCalendar();
   }, [isOpen, cancelSpeech]);
@@ -464,7 +464,7 @@ export function AssistantPanel() {
   return (
     <aside
       className={`${PANEL} flex h-[560px] flex-col overflow-hidden rounded-2xl shadow-2xl shadow-black/60 xl:absolute xl:inset-0 xl:h-auto`}
-      aria-label="Hatfield mission assistant"
+      aria-label="Hadfield mission assistant"
     >
       {/* header */}
       <header className="flex items-center gap-2 border-b border-slate-800/80 px-3 py-2">
@@ -474,7 +474,7 @@ export function AssistantPanel() {
             {(listening || pending) && <span className="absolute inset-0 animate-ping rounded-full ring-2 ring-sky-400/50" />}
           </span>
           <div className="min-w-0">
-            <h2 className="font-mono text-sm font-bold tracking-[0.2em] text-slate-50">HATFIELD</h2>
+            <h2 className="font-mono text-sm font-bold tracking-[0.2em] text-slate-50">HADFIELD</h2>
             <p className="truncate font-mono text-[10px] text-slate-500" title={siteName ?? undefined}>
               {siteName ?? 'No site selected'} · {epochUTC.slice(0, 16).replace('T', ' ')}Z
             </p>
@@ -507,7 +507,7 @@ export function AssistantPanel() {
         <button
           type="button"
           onClick={() => setOpen(false)}
-          aria-label="Close Hatfield"
+          aria-label="Close Hadfield"
           className="grid h-11 w-11 shrink-0 place-items-center rounded-lg text-lg text-slate-400 ring-1 ring-slate-700 hover:bg-slate-800 hover:text-slate-100"
         >
           ×
@@ -522,7 +522,7 @@ export function AssistantPanel() {
         <LearnBlock id="capcom" className="mt-0" />
         {messages.length === 0 && !listening && (
           <p className="text-xs leading-relaxed text-slate-400">
-            Hatfield standing by. {compact ? 'Type or hold the mic to report a problem, or open Issues for quick buttons.' : 'Tap an issue, type, or hold the mic to talk.'} Answers use the selected site, date and the numbers on screen.
+            Hadfield standing by. {compact ? 'Type or hold the mic to report a problem, or open Issues for quick buttons.' : 'Tap an issue, type, or hold the mic to talk.'} Answers use the selected site, date and the numbers on screen.
           </p>
         )}
         {messages.map((m) =>
@@ -553,7 +553,7 @@ export function AssistantPanel() {
             <p className="max-w-[85%] rounded-2xl rounded-br-sm bg-sky-500/20 px-3 py-1.5 text-xs italic text-sky-100 ring-1 ring-sky-400/40">{interim}…</p>
           </div>
         )}
-        {pending && <p className="animate-pulse font-mono text-[11px] tracking-wide text-sky-300/80">Hatfield · Thinking…</p>}
+        {pending && <p className="animate-pulse font-mono text-[11px] tracking-wide text-sky-300/80">Hadfield · Thinking…</p>}
       </div>
 
       {/* quick issues dropdown (compact mode) */}
@@ -582,8 +582,8 @@ export function AssistantPanel() {
           ref={inputRef}
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
-          placeholder="Message Hatfield…"
-          aria-label="Message Hatfield"
+          placeholder="Message Hadfield…"
+          aria-label="Message Hadfield"
           className="min-h-11 min-w-0 flex-1 rounded-lg bg-slate-900/80 px-3 text-sm text-slate-100 ring-1 ring-slate-700/80 outline-none placeholder:text-slate-500 focus:ring-sky-500/70"
         />
         <button
@@ -644,7 +644,7 @@ export function AssistantPanel() {
           <span>Simulation assistant. Not flight-certified.</span>
           {voices.length > 1 && (
             <select
-              aria-label="Hatfield voice"
+              aria-label="Hadfield voice"
               value={voiceURI}
               onChange={(e) => {
                 const v = voices.find((x) => x.voiceURI === e.target.value) ?? null;
@@ -655,7 +655,7 @@ export function AssistantPanel() {
                 } catch {
                   /* storage unavailable */
                 }
-                speak('Hatfield standing by.');
+                speak('Hadfield standing by.');
               }}
               className="max-w-[150px] truncate rounded bg-slate-900/80 px-1 py-0.5 text-[10px] text-slate-300 ring-1 ring-slate-700/80 outline-none"
             >
@@ -681,7 +681,7 @@ function AssistantBubble({ reply, onUndo, undone }: { reply: AssistantReply; onU
           reply.error ? 'bg-amber-500/10 ring-amber-400/30' : 'bg-slate-800/80 ring-slate-700/60'
         }`}
       >
-        <p className="mb-0.5 font-mono text-[9px] font-semibold tracking-[0.2em] text-sky-400/80">HATFIELD</p>
+        <p className="mb-0.5 font-mono text-[9px] font-semibold tracking-[0.2em] text-sky-400/80">HADFIELD</p>
         <p className={`text-sm font-medium leading-snug ${reply.error ? 'text-amber-200' : 'text-slate-50'}`}>{reply.say}</p>
         {reply.action && (
           <p className="mt-1.5 rounded-lg bg-sky-500/10 px-2 py-1 text-xs text-sky-100 ring-1 ring-sky-400/30">

@@ -412,14 +412,14 @@ export function CalendarTab() {
   const selectedDate = epochUTC.slice(0, 10);
   const timeOfDay = epochUTC.slice(11, 19);
 
-  // A day Hatfield marked (e.g. the best launch day), only for the site it was found for.
+  // A day Hadfield marked (e.g. the best launch day), only for the site it was found for.
   const focusDay =
     focus && site && Math.abs(focus.lat - site.lat) < 1e-6 && Math.abs(focus.lon - site.lon) < 1e-6
       ? (calendar?.days.find((d) => d.date === focus.date) ?? null)
       : null;
 
   // Without Expert mode only 3 months fit: start at the marked day's month (or the selected day's),
-  // so asking Hatfield for the best date always brings that month on screen.
+  // so asking Hadfield for the best date always brings that month on screen.
   const anchorMonth = (focusDay?.date ?? selectedDate).slice(0, 7);
   const visibleMonths = useMemo(() => {
     if (showMore) return months;
@@ -478,7 +478,7 @@ export function CalendarTab() {
           <span className="font-mono text-[10px] text-slate-300">
             sunlit {fmtNum(focusDay.sunlit_pct, 0)}% · Earth {fmtNum(focusDay.earth_contact_pct, 0)}% · longest dark {fmtNum(focusDay.longest_darkness_hours, 0)} h
           </span>
-          <span className="text-[10px] text-slate-400">picked by Hatfield</span>
+          <span className="text-[10px] text-slate-400">picked by Hadfield</span>
           <span className="flex-1" />
           {focusDay.date !== selectedDate && (
             <button type="button" onClick={() => setEpochUTC(`${focusDay.date}T${timeOfDay}Z`)} className="text-[11px] text-amber-200 underline hover:text-amber-100">

@@ -13,7 +13,7 @@ export interface AssistantReply {
   highlight: HighlightTarget;
   /** Set when the crew reported a vehicle anomaly: the app re-checks the pad for it and relocates if needed. */
   anomaly?: AnomalyType | null;
-  /** UI actions Hatfield took this turn (applied by the browser in order). */
+  /** UI actions Hadfield took this turn (applied by the browser in order). */
   actions?: AgentAction[];
   error?: boolean;
 }

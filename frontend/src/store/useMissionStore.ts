@@ -46,10 +46,10 @@ export interface MissionState {
   /** True in Expert mode: reveals secondary controls and details (what the old "More" toggle showed). */
   showMore: boolean;
   expert: ExpertSettings;
-  /** A launch day Hatfield picked (e.g. "best date"): the calendar jumps to its month and marks it. Tied to one site. */
+  /** A launch day Hadfield picked (e.g. "best date"): the calendar jumps to its month and marks it. Tied to one site. */
   calendarFocus: CalendarFocus | null;
   psrNotice: PsrNotice | null;
-  /** Last slope / roughness statistics fetched for the Expert card (also sent to Hatfield). */
+  /** Last slope / roughness statistics fetched for the Expert card (also sent to Hadfield). */
   slopeStats: SlopeStatsResponse | null;
   activeDrawerTab: DrawerTab;
   isDrawerOpen: boolean;
@@ -165,7 +165,7 @@ function scheduleEvaluate(get: () => MissionStore, delayMs = 400) {
 
 /**
  * PSR landing guard: no pad may sit inside a permanently shadowed region or within 500 m of one.
- * Runs after every normal selection (map click, typed coordinates, presets, Hatfield, shared links);
+ * Runs after every normal selection (map click, typed coordinates, presets, Hadfield, shared links);
  * if the pad is unsafe it is moved to the nearest flat, sunlit pad outside the buffer.
  */
 async function guardPsr(get: () => MissionStore, set: (p: Partial<MissionState>) => void, clicked: SelectedSite) {

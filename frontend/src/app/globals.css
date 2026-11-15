@@ -86,7 +86,7 @@ body {
   animation: llsn-mic-live 1.2s ease-out infinite;
 }
 
-/* Hatfield-marked best launch day in the calendar: a gentle amber glow pulse */
+/* Hadfield-marked best launch day in the calendar: a gentle amber glow pulse */
 @keyframes llsn-best-day-pulse {
   0%, 100% { box-shadow: 0 0 0 0 rgba(252, 211, 77, 0.0); }
   50% { box-shadow: 0 0 10px 3px rgba(252, 211, 77, 0.65); }

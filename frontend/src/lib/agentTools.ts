@@ -4,7 +4,7 @@ import type { AgentAction, AgentContext, AgentPanel } from '@/types/assistant';
 import { LAYER_IDS, type LayerId } from '@/types/mission';
 
 /**
- * Hatfield's tools. Data tools run here (server side) against the FastAPI backend; UI tools are
+ * Hadfield's tools. Data tools run here (server side) against the FastAPI backend; UI tools are
  * recorded as AgentActions that the browser applies, in order, when the reply arrives. A working
  * copy of the mission context is updated as actions are queued so later tool calls in the same
  * turn (e.g. go_to_site → find_best_date) see the new site and date.

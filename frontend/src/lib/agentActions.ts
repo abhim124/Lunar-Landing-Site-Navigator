@@ -5,7 +5,7 @@ import { useMissionStore } from '@/store/useMissionStore';
 import type { AgentAction, AgentContext, AgentPanel } from '@/types/assistant';
 import type { LayerId, SelectedSite } from '@/types/mission';
 
-/** Mission settings before Hatfield acted, so one click can undo a whole turn. */
+/** Mission settings before Hadfield acted, so one click can undo a whole turn. */
 export interface AgentSnapshot {
   site: SelectedSite | null;
   epochUTC: string;
@@ -88,7 +88,7 @@ function showPanel(panel: AgentPanel) {
   }
 }
 
-/** Apply Hatfield's queued UI actions in order. Panels are shown after the site/date changes render. */
+/** Apply Hadfield's queued UI actions in order. Panels are shown after the site/date changes render. */
 export async function applyAgentActions(actions: AgentAction[]) {
   const panels: AgentPanel[] = [];
   for (const a of actions) {
@@ -136,7 +136,7 @@ const PANEL_LABEL: Record<AgentPanel, string> = {
   comms: 'Showed comms',
 };
 
-/** Short, human labels for the chips under a Hatfield reply. */
+/** Short, human labels for the chips under a Hadfield reply. */
 export function describeActions(actions: AgentAction[]): string[] {
   return actions.map((a) => {
     switch (a.type) {
