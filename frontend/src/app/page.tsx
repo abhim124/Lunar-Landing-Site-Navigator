@@ -43,14 +43,14 @@ export default function MissionPage() {
         </div>
       )}
 
-      {/* Zone 3 — view (globe + panorama) | CAPCOM */}
+      {/* Zone 3 — view (globe + timeline) | CAPCOM */}
       <div className={`grid gap-3 px-3 ${assistantOpen ? 'xl:grid-cols-[2fr_1fr]' : ''}`}>
         <div className="flex min-w-0 flex-col gap-3">
           <div className={`relative overflow-hidden rounded-2xl ${hasSite ? 'h-[280px]' : 'h-[calc(100vh-88px)]'}`}>
             <LunarGlobe />
           </div>
           {hasSite && (
-            <section className={ANALYTICS_PANEL} aria-label="360° sky panorama and timeline">
+            <section className={ANALYTICS_PANEL} aria-label="Mission timeline">
               <PanoramaTab />
             </section>
           )}

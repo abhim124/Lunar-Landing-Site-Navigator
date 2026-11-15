@@ -79,28 +79,11 @@ export function PanoramaTab() {
 
   const maxHours = days * 24;
 
-  const skyline = useMemo(() => (evaluation ? sortSkyline(evaluation.skyline.points) : []), [evaluation]);
-  // Pick between the chart's two built-in tick sets: polar low-sky (≤ 25°) or full-sky (90°).
-  const yMax = useMemo(() => {
-    if (!evaluation) return 25;
-    const peak = Math.max(
-      ...evaluation.trajectory.samples.map((s) => Math.max(s.sun_el_deg, s.earth_el_deg)),
-      ...skyline.map((p) => p.elevation_deg),
-    );
-    return peak > 25 ? 90 : 25;
-  }, [evaluation, skyline]);
-
-  // 360° sky panorama (terrain skyline, Sun path, Earth zone) above the timeline scrubber.
+  // The 360° sky panorama chart (PanoramaChart below) is intentionally not rendered; only the
+  // timeline scrubber is shown. It still drives the Sun/Earth vectors and shadows on the 3D globe.
   return (
     <div className="flex flex-col gap-2 px-3 py-2">
-      <h3 className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500">360° Sky Panorama</h3>
-      {evaluation ? (
-        <div className="relative h-[170px]">
-          <PanoramaChart skyline={skyline} trajectory={evaluation.trajectory} ephem={ephem} minEl={minEl} yMax={yMax} />
-        </div>
-      ) : (
-        <div className="h-[170px] animate-pulse rounded-xl bg-slate-800/50" />
-      )}
+      <h3 className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500">Mission Timeline</h3>
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
         <button
           type="button"
