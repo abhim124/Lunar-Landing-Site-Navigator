@@ -24,6 +24,7 @@ export type AgentAction =
   | { type: 'select_site'; lat: number; lon: number; name: string; regionId?: string; epochUTC: string }
   | { type: 'set_mission'; epochUTC?: string; missionDays?: number; minEarthElevationDeg?: number }
   | { type: 'show_panel'; panel: AgentPanel }
+  | { type: 'focus_calendar'; date: string; label: string; status?: 'GO' | 'MARGINAL' | 'NO-GO' }
   | { type: 'set_layer'; layer: LayerId };
 
 /** The mission settings the agent works from (updated as it queues actions within one turn). */

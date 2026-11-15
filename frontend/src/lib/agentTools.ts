@@ -291,6 +291,7 @@ export async function runAgentTool(
       if (move) {
         const epoch = toEpoch(best.date, ctx)!;
         actions.push({ type: 'set_mission', epochUTC: epoch });
+        actions.push({ type: 'focus_calendar', date: best.date, label: 'Best day', status: best.status });
         actions.push({ type: 'show_panel', panel: 'calendar' });
         ctx.epochUTC = epoch;
       }

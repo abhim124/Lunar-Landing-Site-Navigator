@@ -85,3 +85,11 @@ body {
 .llsn-mic-live {
   animation: llsn-mic-live 1.2s ease-out infinite;
 }
+
+/* CAPCOM-marked best launch day in the calendar: a gentle amber glow pulse */
+@keyframes llsn-best-day-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(252, 211, 77, 0.0); }
+  50% { box-shadow: 0 0 10px 3px rgba(252, 211, 77, 0.65); }
+}
+.llsn-best-day { animation: llsn-best-day-pulse 1.6s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) { .llsn-best-day { animation: none; } }

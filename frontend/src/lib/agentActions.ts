@@ -61,9 +61,16 @@ function flashEl(el: Element | null) {
 function showPanel(panel: AgentPanel) {
   const flash = useAssistantStore.getState().flash;
   switch (panel) {
-    case 'calendar':
+    case 'calendar': {
       flashEl(document.querySelector('[data-highlight-target="calendar"]'));
+      // Then bring the focused (best) day into view inside the calendar.
+      window.setTimeout(() => {
+        const focus = useMissionStore.getState().calendarFocus;
+        const cell = focus && document.querySelector(`[data-highlight-target="calendar"] [data-date="${focus.date}"]`);
+        if (cell instanceof HTMLElement) cell.scrollIntoView({ block: 'center', behavior: 'smooth' });
+      }, 900);
       return;
+    }
     case 'compare':
       flashEl(document.querySelector('[aria-label="Nearby site comparison"]')?.parentElement ?? null);
       return;
@@ -98,6 +105,11 @@ export async function applyAgentActions(actions: AgentAction[]) {
       case 'set_layer':
         m.setActiveLayer(a.layer);
         break;
+      case 'focus_calendar': {
+        const site = useMissionStore.getState().selectedSite;
+        if (site) m.setCalendarFocus({ date: a.date, label: a.label, status: a.status, lat: site.lat, lon: site.lon });
+        break;
+      }
       case 'show_panel':
         panels.push(a.panel);
         break;
@@ -141,6 +153,8 @@ export function describeActions(actions: AgentAction[]): string[] {
         return `Map layer ${a.layer}`;
       case 'show_panel':
         return PANEL_LABEL[a.panel];
+      case 'focus_calendar':
+        return `Marked ${a.label.toLowerCase()} ${new Date(`${a.date}T00:00:00Z`).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' })} on the calendar`;
     }
   });
 }

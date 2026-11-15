@@ -377,8 +377,11 @@ function PanoramaChart({
 const WEEKDAYS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 
 export function CalendarTab() {
-  const { calendar, status, error, epochUTC, setEpochUTC, fetchLaunchCalendar, showMore } = useMissionStore(
+  const { calendar, status, error, epochUTC, setEpochUTC, fetchLaunchCalendar, showMore, focus, site, setFocus } = useMissionStore(
     useShallow((s) => ({
+      focus: s.calendarFocus,
+      site: s.selectedSite,
+      setFocus: s.setCalendarFocus,
       calendar: s.calendar,
       status: s.calendarStatus,
       error: s.calendarError,
@@ -408,6 +411,23 @@ export function CalendarTab() {
 
   const selectedDate = epochUTC.slice(0, 10);
   const timeOfDay = epochUTC.slice(11, 19);
+
+  // A day CAPCOM marked (e.g. the best launch day), only for the site it was found for.
+  const focusDay =
+    focus && site && Math.abs(focus.lat - site.lat) < 1e-6 && Math.abs(focus.lon - site.lon) < 1e-6
+      ? (calendar?.days.find((d) => d.date === focus.date) ?? null)
+      : null;
+
+  // Without Expert mode only 3 months fit: start at the marked day's month (or the selected day's),
+  // so asking CAPCOM for the best date always brings that month on screen.
+  const anchorMonth = (focusDay?.date ?? selectedDate).slice(0, 7);
+  const visibleMonths = useMemo(() => {
+    if (showMore) return months;
+    const i = Math.max(0, months.findIndex(([m]) => m === anchorMonth));
+    // Centre the anchor month (one month either side) when there is room.
+    const start = Math.max(0, Math.min(i - 1, months.length - 3));
+    return months.slice(start, start + 3);
+  }, [months, showMore, anchorMonth]);
 
   if (status === 'loading' && !calendar)
     return <div className="grid place-items-center py-6 text-xs text-slate-500">Scoring 365 launch days with vectorised Skyfield…</div>;
@@ -447,8 +467,31 @@ export function CalendarTab() {
           <DataSourceBadge source={calendar.source} />
         </InfoPanel>
       )}
+      {focusDay && focus && (
+        <div className="mb-2 flex flex-wrap items-center gap-2 rounded-lg bg-amber-400/10 px-2.5 py-1.5 text-xs ring-1 ring-amber-300/40" role="status">
+          <span className="grid h-4 w-4 place-items-center rounded-[3px] bg-amber-300 text-[9px] font-black text-slate-950">★</span>
+          <span className="font-semibold text-amber-100">
+            {focus.label}:{' '}
+            {new Date(`${focusDay.date}T00:00:00Z`).toLocaleString('en-US', { weekday: 'short', month: 'long', day: 'numeric', year: 'numeric', timeZone: 'UTC' })}
+          </span>
+          <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${STATUS_STYLES[focusDay.status].pill}`}>{focusDay.status}</span>
+          <span className="font-mono text-[10px] text-slate-300">
+            sunlit {fmtNum(focusDay.sunlit_pct, 0)}% · Earth {fmtNum(focusDay.earth_contact_pct, 0)}% · longest dark {fmtNum(focusDay.longest_darkness_hours, 0)} h
+          </span>
+          <span className="text-[10px] text-slate-400">picked by CAPCOM</span>
+          <span className="flex-1" />
+          {focusDay.date !== selectedDate && (
+            <button type="button" onClick={() => setEpochUTC(`${focusDay.date}T${timeOfDay}Z`)} className="text-[11px] text-amber-200 underline hover:text-amber-100">
+              Go to this day
+            </button>
+          )}
+          <button type="button" onClick={() => setFocus(null)} aria-label="Clear marked day" className="text-[11px] text-slate-400 hover:text-slate-200">
+            ✕
+          </button>
+        </div>
+      )}
       <div className="grid grid-cols-[repeat(auto-fill,minmax(148px,1fr))] gap-x-4 gap-y-3">
-        {(showMore ? months : months.slice(0, 3)).map(([month, days]) => {
+        {visibleMonths.map(([month, days]) => {
           const firstDow = new Date(`${days[0].date}T00:00:00Z`).getUTCDay();
           const label = new Date(`${month}-01T00:00:00Z`).toLocaleString('en-US', { month: 'short', year: 'numeric', timeZone: 'UTC' });
           return (
@@ -465,18 +508,31 @@ export function CalendarTab() {
                 ))}
                 {days.map((d) => {
                   const sel = d.date === selectedDate;
+                  const best = d.date === focusDay?.date;
                   return (
                     <button
                       key={d.date}
                       type="button"
+                      data-date={d.date}
+                      data-best={best || undefined}
                       onClick={() => setEpochUTC(`${d.date}T${timeOfDay}Z`)}
                       title={`${d.date} · ${d.status}\nSunlit ${fmtNum(d.sunlit_pct, 1)}% · Earth ${fmtNum(d.earth_contact_pct, 0)}% · max dark ${fmtNum(d.longest_darkness_hours, 1)} h`}
-                      aria-label={`${d.date} ${d.status}`}
-                      className={`aspect-square rounded-[3px] ${STATUS_STYLES[d.status].cell} transition-transform hover:scale-125 ${
-                        sel ? 'ring-2 ring-white ring-offset-1 ring-offset-slate-950' : ''
+                      aria-label={`${d.date} ${d.status}${best ? ` (${focus?.label ?? 'best day'})` : ''}`}
+                      className={`relative aspect-square rounded-[3px] ${STATUS_STYLES[d.status].cell} transition-transform hover:scale-125 ${
+                        best
+                          ? 'z-10 scale-125 ring-2 ring-amber-300 ring-offset-2 ring-offset-slate-950 llsn-best-day'
+                          : sel
+                            ? 'ring-2 ring-white ring-offset-1 ring-offset-slate-950'
+                            : ''
                       }`}
-                      style={{ opacity: 0.35 + 0.65 * Math.max(0, Math.min(1, d.score)) }}
-                    />
+                      style={{ opacity: best ? 1 : 0.35 + 0.65 * Math.max(0, Math.min(1, d.score)) }}
+                    >
+                      {best && (
+                        <span aria-hidden className="absolute inset-0 grid place-items-center text-[9px] font-black leading-none text-slate-950">
+                          ★
+                        </span>
+                      )}
+                    </button>
                   );
                 })}
               </div>

@@ -46,6 +46,8 @@ export interface MissionState {
   /** True in Expert mode: reveals secondary controls and details (what the old "More" toggle showed). */
   showMore: boolean;
   expert: ExpertSettings;
+  /** A launch day CAPCOM picked (e.g. "best date"): the calendar jumps to its month and marks it. Tied to one site. */
+  calendarFocus: CalendarFocus | null;
   /** Last slope / roughness statistics fetched for the Expert card (also sent to CAPCOM). */
   slopeStats: SlopeStatsResponse | null;
   activeDrawerTab: DrawerTab;
@@ -74,6 +76,14 @@ export interface MissionState {
   validationKey: string | null;
 }
 
+export interface CalendarFocus {
+  date: string;
+  label: string;
+  status?: 'GO' | 'MARGINAL' | 'NO-GO';
+  lat: number;
+  lon: number;
+}
+
 export interface UrlHydration {
   lat?: number;
   lon?: number;
@@ -100,6 +110,7 @@ export interface MissionActions {
   setShowMore: (on: boolean) => void;
   setExpert: (patch: Partial<ExpertSettings>) => void;
   setSlopeStats: (stats: SlopeStatsResponse | null) => void;
+  setCalendarFocus: (focus: CalendarFocus | null) => void;
   setActiveDrawerTab: (tab: DrawerTab) => void;
   setDrawerOpen: (open: boolean) => void;
   setScrubHour: (h: number) => void;
@@ -155,6 +166,7 @@ export const useMissionStore = create<MissionStore>()((set, get) => ({
   showMore: false,
   expert: DEFAULT_EXPERT,
   slopeStats: null,
+  calendarFocus: null,
   activeDrawerTab: 'PANORAMA',
   isDrawerOpen: true,
   scrubHour: 0,
@@ -256,6 +268,7 @@ export const useMissionStore = create<MissionStore>()((set, get) => ({
   setShowMore: (on) => get().setDisplayMode(on ? 'expert' : 'standard'),
   setExpert: (patch) => set((s) => ({ expert: { ...s.expert, ...patch } })),
   setSlopeStats: (stats) => set({ slopeStats: stats }),
+  setCalendarFocus: (focus) => set({ calendarFocus: focus }),
   setActiveDrawerTab: (tab) => {
     set({ activeDrawerTab: tab, isDrawerOpen: true });
     if (tab === 'CALENDAR') void get().fetchLaunchCalendar();
