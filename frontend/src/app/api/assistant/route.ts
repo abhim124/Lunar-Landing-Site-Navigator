@@ -1,6 +1,7 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { NextResponse } from 'next/server';
 import { ASSISTANT_SYSTEM_PROMPT } from '@/lib/assistantPrompt';
+import { ANOMALY_TYPES, type AnomalyType } from '@/lib/contingency';
 import { HIGHLIGHT_TARGETS, type AssistantReply, type AssistantRequest, type AssistantTurn, type HighlightTarget } from '@/types/assistant';
 
 // Server-only: the API key is read here and never sent to the browser.
@@ -42,6 +43,7 @@ function parseReply(text: string): AssistantReply {
       details: typeof j.details === 'string' ? j.details : '',
       action: typeof j.action === 'string' ? j.action : '',
       highlight,
+      anomaly: ANOMALY_TYPES.includes(j.anomaly as AnomalyType) ? (j.anomaly as AnomalyType) : null,
     };
   } catch {
     const raw = text.trim();
@@ -61,9 +63,9 @@ export async function POST(req: Request) {
     const client = new Anthropic({ apiKey });
     const response = await client.messages.create({
       model: MODEL,
-      max_tokens: 500,
+      max_tokens: 600,
       // Haiku 5.5 rejects non-default `temperature` (400), so it is omitted; thinking is turned off
-      // so the whole 500-token budget goes to the spoken reply and latency stays low for voice.
+      // so the whole token budget goes to the spoken reply and latency stays low for voice.
       thinking: { type: 'disabled' },
       system: `${ASSISTANT_SYSTEM_PROMPT}\n${JSON.stringify(body.missionState ?? {}, null, 2)}`,
       messages: [...sanitizeHistory(body.history), { role: 'user', content: question }],

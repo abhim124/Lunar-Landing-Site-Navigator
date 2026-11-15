@@ -1,11 +1,22 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState, type FormEvent, type KeyboardEvent as ReactKeyboardEvent } from 'react';
+import { api, errorMessage } from '@/lib/api';
 import { buildMissionState } from '@/lib/buildMissionState';
+import {
+  CONTINGENCY_PRESETS,
+  buildContingencyRequest,
+  compassWord,
+  contingencySpeech,
+  type AnomalyType,
+  type ContingencyCheck,
+  type ContingencyResponse,
+} from '@/lib/contingency';
 import { PANEL } from '@/lib/format';
 import { useAssistantStore } from '@/store/useAssistantStore';
 import { useMissionStore } from '@/store/useMissionStore';
 import type { AssistantReply, AssistantTurn, MissionPhase } from '@/types/assistant';
+import type { SelectedSite } from '@/types/mission';
 
 /* ───────────── Web Speech API (not in TS's lib.dom) ───────────── */
 
@@ -55,10 +66,41 @@ const CHIPS: { label: string; icon: string; question: string | null }[] = [
   { label: 'Darkness soon', icon: '🌑', question: 'When does darkness start, and how long will it last?' },
   { label: 'Space weather', icon: '☢', question: "What's the space weather risk right now?" },
   { label: 'Better site/date', icon: '🧭', question: 'Is there a better nearby site or launch date?' },
+  { label: 'Fuel leak', icon: '⛽', question: 'We have a fuel leak. Is our landing site still viable?' },
+  { label: 'Landing radar out', icon: '⚠', question: 'Our landing hazard-detection radar has failed. Is our landing site still viable?' },
   { label: 'Other', icon: '✎', question: null },
 ];
 
-type ChatEntry = { id: string; role: 'user'; text: string } | { id: string; role: 'assistant'; reply: AssistantReply };
+interface ContingencyState {
+  anomaly: AnomalyType;
+  phase: MissionPhase;
+  status: 'loading' | 'done' | 'error';
+  result?: ContingencyResponse;
+  error?: string;
+  /** The pad before an automatic relocation, so the crew can undo it. */
+  prevSite?: SelectedSite;
+  epochUTC: string;
+  relocated?: boolean;
+  undone?: boolean;
+}
+
+type ChatEntry =
+  | { id: string; role: 'user'; text: string }
+  | { id: string; role: 'assistant'; reply: AssistantReply }
+  | { id: string; role: 'contingency'; c: ContingencyState };
+
+/** Text the model sees in history for a finished re-assessment. */
+function contingencyHistory(c: ContingencyState): string | null {
+  if (c.status !== 'done' || !c.result) return null;
+  const r = c.result;
+  const fmt = (x: ContingencyCheck) => `${x.label} ${Math.round(x.value * 10) / 10}${x.unit} (${x.kind === 'max' ? '≤' : '≥'}${x.limit}${x.unit} ${x.ok ? 'ok' : 'FAIL'})`;
+  let t = `[Site re-assessment for ${CONTINGENCY_PRESETS[c.anomaly].label}] Original pad ${r.viable ? 'VIABLE' : 'NOT VIABLE'}: ${r.baseline.checks.map(fmt).join(', ')}.`;
+  if (r.relocation && c.relocated && !c.undone)
+    t += ` Relocated ${(r.relocation.distance_km ?? 0).toFixed(2)} km ${compassWord(r.relocation.bearing_deg ?? 0)} to ${r.relocation.lat.toFixed(4)}, ${r.relocation.lon.toFixed(4)}: ${r.relocation.checks.map(fmt).join(', ')}; verdict ${r.relocation.status}.`;
+  else if (c.undone) t += ' Relocation was undone by the crew; back on the original pad.';
+  else if (!r.viable) t += ` ${r.note}`;
+  return t;
+}
 
 let seq = 0;
 const nextId = () => `c${Date.now()}-${seq++}`;
@@ -146,9 +188,9 @@ export function AssistantPanel() {
   }, []);
 
   const speak = useCallback(
-    (text: string) => {
+    (text: string, queue = false) => {
       if (mutedRef.current || !text || !('speechSynthesis' in window)) return;
-      cancelSpeech();
+      if (!queue) cancelSpeech();
       const u = new SpeechSynthesisUtterance(text);
       u.pitch = 0.6;
       u.rate = 1.0;
@@ -178,6 +220,51 @@ export function AssistantPanel() {
     listRef.current?.scrollTo({ top: listRef.current.scrollHeight, behavior: 'smooth' });
   }, [messages, pending, interim]);
 
+  const patchContingency = (id: string, patch: Partial<ContingencyState>) =>
+    setMessages((prev) => prev.map((m) => (m.id === id && m.role === 'contingency' ? { ...m, c: { ...m.c, ...patch } } : m)));
+
+  /** Re-check the current pad for a reported anomaly and relocate automatically when it fails. */
+  const runContingency = async (anomaly: AnomalyType) => {
+    const m = useMissionStore.getState();
+    const site = m.selectedSite;
+    const id = nextId();
+    if (!site) {
+      setMessages((prev) => [
+        ...prev,
+        { id, role: 'contingency', c: { anomaly, phase, status: 'error', error: 'Select a landing site first.', epochUTC: m.epochUTC } },
+      ]);
+      return;
+    }
+    const epochUTC = m.epochUTC;
+    setMessages((prev) => [...prev, { id, role: 'contingency', c: { anomaly, phase, status: 'loading', epochUTC, prevSite: site } }]);
+    try {
+      const result = await api.contingency(
+        buildContingencyRequest(anomaly, phase, site, epochUTC, m.missionDurationDays, m.minEarthElevationDeg),
+      );
+      const rl = result.relocation;
+      const relocate = !result.viable && !!rl && phase !== 'surface';
+      if (relocate) {
+        useMissionStore
+          .getState()
+          .selectSite(
+            { lat: rl.lat, lon: rl.lon, name: `Contingency pad · ${site.name.replace(/^(Contingency|Alt\.) pad · /, '')}`, regionId: null },
+            { epochUTC, fly: true },
+          );
+      }
+      patchContingency(id, { status: 'done', result, relocated: relocate });
+      speak(contingencySpeech(anomaly, result, phase), true);
+      flash('verdict');
+    } catch (err) {
+      patchContingency(id, { status: 'error', error: errorMessage(err) });
+    }
+  };
+
+  const undoRelocation = (id: string, c: ContingencyState) => {
+    if (!c.prevSite) return;
+    useMissionStore.getState().selectSite(c.prevSite, { epochUTC: c.epochUTC, fly: true });
+    patchContingency(id, { undone: true });
+  };
+
   /* send */
   const send = useCallback(
     async (raw: string) => {
@@ -186,6 +273,10 @@ export function AssistantPanel() {
       cancelSpeech();
       const history: AssistantTurn[] = messages.flatMap((m): AssistantTurn[] => {
         if (m.role === 'user') return [{ role: 'user', content: m.text }];
+        if (m.role === 'contingency') {
+          const t = contingencyHistory(m.c);
+          return t ? [{ role: 'assistant', content: t }] : [];
+        }
         if (m.reply.error) return [];
         const { say, details, action, highlight } = m.reply;
         return [{ role: 'assistant', content: JSON.stringify({ say, details, action, highlight }) }];
@@ -207,9 +298,10 @@ export function AssistantPanel() {
         reply = OFFLINE;
       }
       setMessages((prev) => [...prev, { id: nextId(), role: 'assistant', reply }]);
-      setPending(false);
       speak(reply.say);
       if (reply.highlight && reply.highlight !== 'none') flash(reply.highlight);
+      if (reply.anomaly && !reply.error) await runContingency(reply.anomaly);
+      setPending(false);
     },
     [pending, messages, phase, cancelSpeech, speak, flash],
   );
@@ -386,6 +478,8 @@ export function AssistantPanel() {
             <div key={m.id} className="flex justify-end">
               <p className="max-w-[85%] whitespace-pre-wrap rounded-2xl rounded-br-sm bg-sky-500/90 px-3 py-1.5 text-xs leading-relaxed text-slate-950">{m.text}</p>
             </div>
+          ) : m.role === 'contingency' ? (
+            <ContingencyCard key={m.id} c={m.c} onUndo={() => undoRelocation(m.id, m.c)} />
           ) : (
             <AssistantBubble key={m.id} reply={m.reply} />
           ),
@@ -491,6 +585,95 @@ function AssistantBubble({ reply }: { reply: AssistantReply }) {
             </summary>
             <p className="mt-1 whitespace-pre-wrap text-xs leading-relaxed text-slate-300">{reply.details}</p>
           </details>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function fmtCheck(c: ContingencyCheck) {
+  const v = c.unit === '°' ? c.value.toFixed(1) : Math.round(c.value).toString();
+  return `${v}${c.unit}`;
+}
+
+function ContingencyCard({ c, onUndo }: { c: ContingencyState; onUndo: () => void }) {
+  const preset = CONTINGENCY_PRESETS[c.anomaly];
+  const r = c.result;
+  const rl = r?.relocation ?? null;
+  const tone =
+    c.status === 'loading'
+      ? 'ring-sky-500/40 bg-sky-500/5'
+      : c.status === 'error'
+        ? 'ring-amber-400/40 bg-amber-500/10'
+        : r?.viable
+          ? 'ring-emerald-400/40 bg-emerald-500/10'
+          : 'ring-rose-400/40 bg-rose-500/10';
+  return (
+    <div className="flex justify-start">
+      <div className={`w-full max-w-[92%] rounded-2xl rounded-bl-sm px-3 py-2 ring-1 ${tone}`} data-testid="contingency-card">
+        <p className="mb-0.5 font-mono text-[9px] font-semibold tracking-[0.2em] text-sky-400/80">SITE RE-ASSESSMENT · {preset.label.toUpperCase()}</p>
+        {c.status === 'loading' && (
+          <p className="flex items-center gap-2 text-xs text-slate-300">
+            <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-sky-400" />
+            Checking the pad against {preset.label.toLowerCase()} limits…
+          </p>
+        )}
+        {c.status === 'error' && <p className="text-xs text-amber-200">Re-assessment failed: {c.error}</p>}
+        {c.status === 'done' && r && (
+          <>
+            <p className={`text-sm font-semibold ${r.viable ? 'text-emerald-200' : 'text-rose-200'}`}>
+              {r.viable ? 'Current pad still viable' : 'Current pad NOT viable'}
+              {!r.viable && r.failed.length > 0 && <span className="font-normal text-rose-200/80"> · fails {r.failed.join(', ').toLowerCase()}</span>}
+            </p>
+            <table className="mt-1.5 w-full text-[11px]">
+              <thead>
+                <tr className="text-left text-[10px] uppercase tracking-wider text-slate-500">
+                  <th className="font-medium">Limit</th>
+                  <th className="font-medium">Current</th>
+                  {rl && <th className="font-medium">New pad</th>}
+                </tr>
+              </thead>
+              <tbody className="font-mono">
+                {r.baseline.checks.map((b, i) => {
+                  const n = rl?.checks[i];
+                  return (
+                    <tr key={b.key}>
+                      <td className="py-0.5 font-sans text-slate-400">
+                        {b.label} {b.kind === 'max' ? '≤' : '≥'} {b.limit}
+                        {b.unit}
+                      </td>
+                      <td className={b.ok ? 'text-emerald-300' : 'text-rose-300'}>{fmtCheck(b)}</td>
+                      {n && <td className={n.ok ? 'text-emerald-300' : 'text-rose-300'}>{fmtCheck(n)}</td>}
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+            {rl && c.phase !== 'surface' && (
+              <p className="mt-1.5 rounded-lg bg-sky-500/10 px-2 py-1 text-xs text-sky-100 ring-1 ring-sky-400/30">
+                <span className="mr-1 font-mono text-[10px] font-semibold uppercase tracking-wider text-sky-300">
+                  {c.undone ? 'Relocation undone' : 'Relocated'}
+                </span>
+                {(rl.distance_km ?? 0).toFixed(2)} km {compassWord(rl.bearing_deg ?? 0)} · verdict {rl.status}
+                {!rl.meets_all && ' · best reachable, not all limits met'}
+              </p>
+            )}
+            {!r.viable && !rl && <p className="mt-1.5 text-xs text-slate-300">{r.note}</p>}
+            {c.relocated && !c.undone && (
+              <button type="button" onClick={onUndo} className="mt-1.5 text-[11px] text-slate-400 underline hover:text-slate-200">
+                Undo, return to original pad
+              </button>
+            )}
+            <details className="group mt-1.5">
+              <summary className="cursor-pointer list-none text-[11px] font-medium text-slate-400 hover:text-slate-200">
+                <span className="inline-block transition-transform group-open:rotate-90">▸</span> Why these limits
+              </summary>
+              <p className="mt-1 text-xs leading-relaxed text-slate-300">
+                {preset.rationale} Divert radius {r.search_radius_km} km{c.phase === 'descent' ? ' (halved during descent)' : ''};{' '}
+                {r.candidates_evaluated} candidate pads checked against the DE421 Sun/Earth ephemeris and LOLA horizon in {Math.round(r.computed_in_ms)} ms.
+              </p>
+            </details>
+          </>
         )}
       </div>
     </div>

@@ -8,6 +8,7 @@ import type {
   ValidationBenchmarkResponse,
   ValidationRequest,
 } from '@/types/mission';
+import type { ContingencyRequest, ContingencyResponse } from './contingency';
 
 export const API_BASE = (process.env.NEXT_PUBLIC_API_BASE ?? 'http://localhost:8000').replace(/\/+$/, '');
 
@@ -82,6 +83,9 @@ export const api = {
       body: JSON.stringify(body),
       signal,
     }),
+
+  contingency: (body: ContingencyRequest, signal?: AbortSignal) =>
+    requestJson<ContingencyResponse>('/api/contingency', { method: 'POST', body: JSON.stringify(body), signal }),
 
   validation: (params: ValidationRequest, signal?: AbortSignal) =>
     requestJson<ValidationBenchmarkResponse>(`/api/validation?${qs(params)}`, { signal }),

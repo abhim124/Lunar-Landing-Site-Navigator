@@ -1,3 +1,5 @@
+import type { AnomalyType } from '@/lib/contingency';
+
 export type MissionPhase = 'pre-landing' | 'descent' | 'surface';
 
 export const HIGHLIGHT_TARGETS = ['power', 'comms', 'verdict', 'calendar', 'none'] as const;
@@ -8,6 +10,8 @@ export interface AssistantReply {
   details: string;
   action: string;
   highlight: HighlightTarget;
+  /** Set when the crew reported a vehicle anomaly: the app re-checks the pad for it and relocates if needed. */
+  anomaly?: AnomalyType | null;
   error?: boolean;
 }
 

@@ -53,7 +53,8 @@ def _evaluate_pad(lat: float, lon: float, start, hours: np.ndarray, step_h: floa
     return tp, wm, status
 
 
-def _stage1_polar(lat: float, lon: float, radius_km: float):
+def _stage1_polar(lat: float, lon: float, radius_km: float, max_slope: float = 10.0,
+                  weights: tuple[float, float, float] = (0.55, 0.35, 0.10), top_k: int = TOP_K):
     store = GridStore.get()
     x, y = (float(v) for v in stereo_forward(lat, lon))
     half = int(round(BOX_KM / 2 * 1000 / store.ldem.pixel_m))
@@ -67,13 +68,14 @@ def _stage1_polar(lat: float, lon: float, radius_km: float):
     rr, cc = np.mgrid[0:n, 0:m]
     px, py = store.avg_vis.xy(rr + r0, cc + c0)
     dist_km = np.hypot(px - x, py - y) / 1000.0
-    mask = (dist_km <= radius_km) & (dist_km > 0.12) & (sl <= 10.0) & (ps < 0.5)
-    score = np.where(mask, 0.55 * av + 0.35 * ev - 0.10 * sl / 15.0, -np.inf)
+    mask = (dist_km <= radius_km) & (dist_km > 0.12) & (sl <= max_slope) & (ps < 0.5)
+    w_sun, w_earth, w_slope = weights
+    score = np.where(mask, w_sun * av + w_earth * ev - w_slope * sl / 15.0, -np.inf)
     picks: list[tuple[float, float]] = []
     order = np.argsort(score, axis=None)[::-1]
     taken = np.zeros_like(mask)
     for flat in order:
-        if not np.isfinite(score.flat[flat]) or len(picks) >= TOP_K:
+        if not np.isfinite(score.flat[flat]) or len(picks) >= top_k:
             break
         r, c = divmod(int(flat), m)
         if taken[max(0, r - 2) : r + 3, max(0, c - 2) : c + 3].any():
@@ -84,13 +86,14 @@ def _stage1_polar(lat: float, lon: float, radius_km: float):
     return picks, int(n * m), BOX_KM
 
 
-def _stage1_global(lat: float, lon: float, radius_km: float):
+def _stage1_global(lat: float, lon: float, radius_km: float, max_slope: float = 90.0, top_k: int = TOP_K):
     """Outside PGDA coverage: candidate rings scored by LOLA LDEM_16 slope only."""
     bearings = np.arange(0, 360, 30.0)
     dists = np.array([0.25, 0.5, 0.75, 1.0]) * radius_km * 1000
     la, lo = destination(lat, lon, bearings[:, None], dists[None, :])
     cands = list(zip(la.ravel().tolist(), lo.ravel().tolist()))
-    scored = sorted(cands, key=lambda p: terrain_at(*p).slope_deg)[:TOP_K]
+    slopes = {p: terrain_at(*p).slope_deg for p in cands}
+    scored = sorted((p for p in cands if slopes[p] <= max_slope), key=slopes.__getitem__)[:top_k]
     return scored, len(cands), 2 * radius_km
 
 

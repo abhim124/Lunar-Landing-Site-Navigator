@@ -21,9 +21,11 @@ from fastapi.responses import FileResponse
 from .cache import GridStore, fetch_bytes_cached
 from .ephemeris import SPICE_SOURCE, EphemerisEngine, horizons_azel, iso_z, parse_utc, space_weather
 from .evaluation import evaluate_site, launch_calendar
+from .contingency import assess_contingency
 from .optimizer import nearest_alternative
 from .registry import BENCHMARKS
 from .schemas import (
+    ContingencyRequest,
     LaunchCalendarResponse,
     NearestAlternativeRequest,
     NearestAlternativeResponse,
@@ -101,6 +103,13 @@ async def evaluate(req: SiteEvaluationRequest) -> dict:
 async def alternative(req: NearestAlternativeRequest) -> dict:
     _parse_epoch(req.epoch_utc)
     return await to_thread.run_sync(nearest_alternative, req)
+
+
+@app.post("/api/contingency")
+async def contingency(req: ContingencyRequest) -> dict:
+    """Re-check the current pad against anomaly-specific constraints and, if it fails, find a reachable pad that passes."""
+    _parse_epoch(req.epoch_utc)
+    return await to_thread.run_sync(assess_contingency, req)
 
 
 @app.get("/api/launch-calendar", response_model=LaunchCalendarResponse)

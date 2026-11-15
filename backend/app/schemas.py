@@ -50,6 +50,22 @@ class NearestAlternativeRequest(BaseModel):
     date_window_days: float = Field(default=14, gt=0, le=30)
 
 
+class ContingencyRequest(BaseModel):
+    lat: float = Field(ge=-90, le=90)
+    lon: float = Field(ge=-360, le=360)
+    epoch_utc: str
+    mission_duration_days: float = Field(default=7, ge=0.5, le=30)
+    min_earth_elevation_deg: float = Field(default=5, ge=0, le=20)
+    anomaly: str = Field(default="other", max_length=64)
+    max_divert_km: float = Field(default=10, gt=0, le=25)
+    max_slope_deg: float = Field(default=12, ge=1, le=20)
+    min_sunlit_pct: float = Field(default=40, ge=0, le=100)
+    max_darkness_hours: float = Field(default=96, ge=0, le=720)
+    min_earth_contact_pct: float = Field(default=40, ge=0, le=100)
+    priority: Literal["slope", "sunlight", "darkness", "earth", "balanced"] = "balanced"
+    allow_relocation: bool = True
+
+
 # ─────────── responses ───────────
 
 
