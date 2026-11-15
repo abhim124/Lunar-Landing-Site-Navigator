@@ -4,6 +4,7 @@ import dynamic from 'next/dynamic';
 import { useEffect } from 'react';
 import { AssistantPanel } from '@/components/AssistantPanel';
 import { DataSourceBadge } from '@/components/ui/DataSourceBadge';
+import { NearbyWindowsPanel } from '@/components/ui/NearbyWindowsPanel';
 import { ANALYTICS_PANEL, CalendarTab, PanoramaTab, ValidationTab, tabButtonClass } from '@/components/ui/SkyPanoramaDrawer';
 import { TopCommandPill } from '@/components/ui/TopCommandPill';
 import { VerdictCard } from '@/components/ui/VerdictCard';
@@ -89,10 +90,15 @@ function LaunchCalendarZone() {
 
   return (
     <div className="px-3">
-      <section data-highlight-target="calendar" className={ANALYTICS_PANEL} aria-label="365-day launch slip calendar">
-        <h3 className="px-3 pt-3 text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500">365-Day Launch Slip</h3>
-        <CalendarTab />
-      </section>
+      <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_340px]">
+        <section data-highlight-target="calendar" className={ANALYTICS_PANEL} aria-label="365-day launch slip calendar">
+          <h3 className="px-3 pt-3 text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500">365-Day Launch Slip</h3>
+          <CalendarTab />
+        </section>
+        <div className={ANALYTICS_PANEL}>
+          <NearbyWindowsPanel />
+        </div>
+      </div>
     </div>
   );
 }

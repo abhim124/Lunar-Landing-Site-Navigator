@@ -9,6 +9,7 @@ import type {
   ValidationRequest,
 } from '@/types/mission';
 import type { ContingencyRequest, ContingencyResponse } from './contingency';
+import type { NearbyWindowsRequest, NearbyWindowsResponse } from '@/types/nearbyWindows';
 
 export const API_BASE = (process.env.NEXT_PUBLIC_API_BASE ?? 'http://localhost:8000').replace(/\/+$/, '');
 
@@ -86,6 +87,9 @@ export const api = {
 
   contingency: (body: ContingencyRequest, signal?: AbortSignal) =>
     requestJson<ContingencyResponse>('/api/contingency', { method: 'POST', body: JSON.stringify(body), signal }),
+
+  nearbyWindows: (params: NearbyWindowsRequest, signal?: AbortSignal) =>
+    requestJson<NearbyWindowsResponse>(`/api/nearby-windows?${qs(params)}`, { signal }),
 
   validation: (params: ValidationRequest, signal?: AbortSignal) =>
     requestJson<ValidationBenchmarkResponse>(`/api/validation?${qs(params)}`, { signal }),

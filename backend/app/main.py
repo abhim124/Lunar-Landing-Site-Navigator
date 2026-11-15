@@ -22,6 +22,7 @@ from .cache import GridStore, fetch_bytes_cached
 from .ephemeris import SPICE_SOURCE, EphemerisEngine, horizons_azel, iso_z, parse_utc, space_weather
 from .evaluation import evaluate_site, launch_calendar
 from .contingency import assess_contingency
+from .nearby_windows import nearby_windows
 from .optimizer import nearest_alternative
 from .registry import BENCHMARKS
 from .schemas import (
@@ -124,6 +125,25 @@ async def calendar(
     _parse_epoch(f"{start_date}T00:00:00Z")
     lon = (lon + 180) % 360 - 180
     return await to_thread.run_sync(launch_calendar, lat, lon, start_date, n_days, mission_duration_days, min_earth_elevation_deg)
+
+
+@app.get("/api/nearby-windows")
+async def nearby_windows_route(
+    lat: float = Query(ge=-90, le=90),
+    lon: float = Query(ge=-360, le=360),
+    start_date: str = Query(pattern=r"^\d{4}-\d{2}-\d{2}$"),
+    planned_date: str | None = Query(None, pattern=r"^\d{4}-\d{2}-\d{2}$"),
+    n_days: int = Query(365, ge=1, le=400),
+    mission_duration_days: float = Query(7, ge=0.5, le=30),
+    min_earth_elevation_deg: float = Query(5, ge=0, le=20),
+    radius_km: float = Query(10, gt=0, le=25),
+    k: int = Query(3, ge=1, le=6),
+) -> dict:
+    """Nearby pads whose 365-day launch calendar beats the selected pad's (scenario comparison)."""
+    _parse_epoch(f"{start_date}T00:00:00Z")
+    return await to_thread.run_sync(
+        nearby_windows, lat, lon, start_date, planned_date or start_date, n_days, mission_duration_days, min_earth_elevation_deg, radius_km, k
+    )
 
 
 @app.get("/api/space-weather", response_model=SpaceWeatherStatus)

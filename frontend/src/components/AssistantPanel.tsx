@@ -50,6 +50,31 @@ function getRecognitionCtor(): SpeechRecognitionCtor | null {
   return w.SpeechRecognition ?? w.webkitSpeechRecognition ?? null;
 }
 
+/* ───────────── voice ranking ───────────── */
+
+const VOICE_KEY = 'capcom-voice';
+
+// Smoothest first: neural/premium voices (macOS Premium/Enhanced, Edge "Natural", Chrome Google), then known good system voices.
+const SMOOTH_HINTS = [/premium/i, /enhanced/i, /natural/i, /neural/i, /siri/i];
+const GOOD_NAMES = ['Ava', 'Zoe', 'Evan', 'Nathan', 'Allison', 'Samantha', 'Google US English', 'Google UK English Female', 'Aria', 'Jenny', 'Serena', 'Daniel', 'Karen', 'Moira'];
+// Novelty voices bundled with macOS that should never be the default.
+const NOVELTY = /albert|bad news|bahh|bells|boing|bubbles|cellos|good news|jester|organ|superstar|trinoids|whisper|wobble|zarvox|junior|ralph|fred|kathy|grandma|grandpa|eddy|flo|reed|rocko|sandy|shelley/i;
+
+function rankVoices(all: SpeechSynthesisVoice[]): SpeechSynthesisVoice[] {
+  const score = (v: SpeechSynthesisVoice) => {
+    let s = 0;
+    if (SMOOTH_HINTS.some((r) => r.test(v.name))) s += 100;
+    const i = GOOD_NAMES.findIndex((n) => v.name.includes(n));
+    if (i >= 0) s += 50 - i;
+    if (v.lang.toLowerCase().startsWith('en-us')) s += 5;
+    if (!v.localService) s += 3; // network voices (Google/Microsoft) are usually neural
+    return s;
+  };
+  return all
+    .filter((v) => v.lang.toLowerCase().startsWith('en') && !NOVELTY.test(v.name))
+    .sort((a, b) => score(b) - score(a));
+}
+
 /* ───────────── constants ───────────── */
 
 const OFFLINE: AssistantReply = { say: 'CAPCOM is offline. Check the status cards.', details: '', action: '', highlight: 'none', error: true };
@@ -161,6 +186,8 @@ export function AssistantPanel() {
   const listRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const voiceRef = useRef<SpeechSynthesisVoice | null>(null);
+  const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
+  const [voiceURI, setVoiceURI] = useState('');
   const recRef = useRef<SpeechRecognitionLike | null>(null);
   const finalRef = useRef('');
   const interimRef = useRef('');
@@ -177,9 +204,16 @@ export function AssistantPanel() {
     setVoiceSupported(getRecognitionCtor() !== null);
     if (!('speechSynthesis' in window)) return;
     const pick = () => {
-      const voices = window.speechSynthesis.getVoices();
-      const en = voices.filter((v) => v.lang.toLowerCase().startsWith('en'));
-      voiceRef.current = en.find((v) => v.name.includes('Google')) ?? en.find((v) => v.default) ?? en[0] ?? null;
+      const en = rankVoices(window.speechSynthesis.getVoices());
+      setVoices(en);
+      let saved: string | null = null;
+      try {
+        saved = localStorage.getItem(VOICE_KEY);
+      } catch {
+        /* storage unavailable */
+      }
+      voiceRef.current = en.find((v) => v.voiceURI === saved) ?? en[0] ?? null;
+      setVoiceURI(voiceRef.current?.voiceURI ?? '');
     };
     pick();
     window.speechSynthesis.addEventListener('voiceschanged', pick);
@@ -195,8 +229,8 @@ export function AssistantPanel() {
       if (mutedRef.current || !text || !('speechSynthesis' in window)) return;
       if (!queue) cancelSpeech();
       const u = new SpeechSynthesisUtterance(text);
-      u.pitch = 0.6;
-      u.rate = 1.0;
+      u.pitch = 1.0;
+      u.rate = 1.02;
       if (voiceRef.current) {
         u.voice = voiceRef.current;
         u.lang = voiceRef.current.lang;
@@ -587,7 +621,33 @@ export function AssistantPanel() {
             </>
           )
         )}
-        <p className="mt-1.5 text-center text-[10px] text-slate-500">Simulation assistant. Not flight-certified.</p>
+        <div className="mt-1.5 flex items-center justify-center gap-2 text-[10px] text-slate-500">
+          <span>Simulation assistant. Not flight-certified.</span>
+          {voices.length > 1 && (
+            <select
+              aria-label="CAPCOM voice"
+              value={voiceURI}
+              onChange={(e) => {
+                const v = voices.find((x) => x.voiceURI === e.target.value) ?? null;
+                voiceRef.current = v;
+                setVoiceURI(e.target.value);
+                try {
+                  localStorage.setItem(VOICE_KEY, e.target.value);
+                } catch {
+                  /* storage unavailable */
+                }
+                speak('CAPCOM standing by.');
+              }}
+              className="max-w-[150px] truncate rounded bg-slate-900/80 px-1 py-0.5 text-[10px] text-slate-300 ring-1 ring-slate-700/80 outline-none"
+            >
+              {voices.map((v) => (
+                <option key={v.voiceURI} value={v.voiceURI}>
+                  {v.name.replace(/\s*\(.*English.*\)/, '')}
+                </option>
+              ))}
+            </select>
+          )}
+        </div>
       </div>
     </aside>
   );
