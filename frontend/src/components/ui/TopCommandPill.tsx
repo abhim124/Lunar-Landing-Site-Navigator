@@ -8,6 +8,8 @@ import { CURATED_SITES } from '@/lib/siteRegistry';
 import { OVERLAY_LAYERS } from '@/lib/wmtsTileLoader';
 import { useMissionStore, type SceneStatus } from '@/store/useMissionStore';
 import { ModeSwitch } from './ModeSwitch';
+import EnvComparisonModal from '@/components/EnvComparisonModal';
+import { ENV_PRESETS, selectEnvPreset, useEnvSite } from '@/lib/envSite';
 import { CapcomButton } from '@/components/AssistantPanel';
 import type { LayerId } from '@/types/mission';
 
@@ -152,6 +154,8 @@ export function TopCommandPill() {
 
         <ModeSwitch />
 
+        <EnvCompareButton />
+
         <CapcomButton />
 
         <div className={expanded ? 'contents' : 'hidden'}>
@@ -256,4 +260,10 @@ function SceneStatusDot({ scene }: { scene: SceneStatus }) {
       <span className={`h-2 w-2 rounded-full ${color}`} />
     </span>
   );
+}
+
+/** Earth vs. lunar-site comparison HUD, bound to the selected site's live data. */
+function EnvCompareButton() {
+  const { site, presetId, loading } = useEnvSite();
+  return <EnvComparisonModal selectedSite={site} presets={ENV_PRESETS} activePresetId={presetId} onSelectPreset={selectEnvPreset} loading={loading} />;
 }
