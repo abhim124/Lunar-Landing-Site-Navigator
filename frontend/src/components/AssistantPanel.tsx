@@ -149,6 +149,9 @@ export function AssistantPanel() {
   const [muted, setMuted] = useState(false);
   const [messages, setMessages] = useState<ChatEntry[]>([]);
   const [draft, setDraft] = useState('');
+  // With a site selected the screen is crowded: quick-issue buttons live behind a dropdown.
+  const [issuesOpen, setIssuesOpen] = useState(false);
+  const compact = siteName !== null;
   const [pending, setPending] = useState(false);
   const [listening, setListening] = useState(false);
   const [interim, setInterim] = useState('');
@@ -391,6 +394,29 @@ export function AssistantPanel() {
     }
   };
 
+  const IssueChips = () => (
+      <div className={`grid grid-cols-2 gap-1.5 p-2 ${compact ? 'border-t' : 'border-b'} border-slate-800/80`} role="group" aria-label="Quick issues">
+        {CHIPS.map((c) => (
+          <button
+            key={c.label}
+            type="button"
+            disabled={c.question !== null && pending}
+            onClick={() => {
+              setIssuesOpen(false);
+              if (c.question) void send(c.question);
+              else inputRef.current?.focus();
+            }}
+            className="flex min-h-11 items-center gap-2 rounded-xl bg-slate-900/60 px-2.5 text-left text-xs font-medium text-slate-200 ring-1 ring-slate-700/80 transition-colors hover:bg-slate-800 hover:ring-sky-500/50 disabled:opacity-40"
+          >
+            <span aria-hidden className="w-4 text-center">
+              {c.icon}
+            </span>
+            {c.label}
+          </button>
+        ))}
+      </div>
+  );
+
   if (!isOpen) return null;
 
   const micLabel = pending ? 'Thinking…' : listening ? 'Listening…' : 'Hold to talk';
@@ -448,29 +474,14 @@ export function AssistantPanel() {
         </button>
       </header>
 
-      {/* issue chips */}
-      <div className="grid grid-cols-2 gap-1.5 border-b border-slate-800/80 p-2">
-        {CHIPS.map((c) => (
-          <button
-            key={c.label}
-            type="button"
-            disabled={c.question !== null && pending}
-            onClick={() => (c.question ? void send(c.question) : inputRef.current?.focus())}
-            className="flex min-h-11 items-center gap-2 rounded-xl bg-slate-900/60 px-2.5 text-left text-xs font-medium text-slate-200 ring-1 ring-slate-700/80 transition-colors hover:bg-slate-800 hover:ring-sky-500/50 disabled:opacity-40"
-          >
-            <span aria-hidden className="w-4 text-center">
-              {c.icon}
-            </span>
-            {c.label}
-          </button>
-        ))}
-      </div>
+      {/* issue chips: always shown with no site; behind the Quick issues dropdown once a site is selected */}
+      {!compact && <IssueChips />}
 
       {/* transcript */}
       <div ref={listRef} className="llsn-scroll min-h-0 flex-1 space-y-2.5 overflow-y-auto px-3 py-3" aria-live="polite">
         {messages.length === 0 && !listening && (
           <p className="text-xs leading-relaxed text-slate-400">
-            CAPCOM standing by. Tap an issue, type, or hold the mic to talk. Answers use the selected site, date and the numbers on screen.
+            CAPCOM standing by. {compact ? 'Type or hold the mic to report a problem, or open Issues for quick buttons.' : 'Tap an issue, type, or hold the mic to talk.'} Answers use the selected site, date and the numbers on screen.
           </p>
         )}
         {messages.map((m) =>
@@ -492,8 +503,28 @@ export function AssistantPanel() {
         {pending && <p className="animate-pulse font-mono text-[11px] tracking-wide text-sky-300/80">CAPCOM · Thinking…</p>}
       </div>
 
+      {/* quick issues dropdown (compact mode) */}
+      {compact && issuesOpen && <IssueChips />}
+
       {/* input */}
       <form onSubmit={submit} className="flex items-center gap-2 border-t border-slate-800/80 p-2">
+        {compact && (
+          <button
+            type="button"
+            onClick={() => setIssuesOpen((o) => !o)}
+            aria-expanded={issuesOpen}
+            aria-label={issuesOpen ? 'Hide quick issues' : 'Show quick issues'}
+            title="Quick issues"
+            className={`flex min-h-11 shrink-0 items-center gap-1 rounded-lg px-2.5 text-xs font-medium ring-1 transition-colors ${
+              issuesOpen ? 'bg-sky-500/20 text-sky-100 ring-sky-400/50' : 'bg-slate-900/80 text-slate-300 ring-slate-700/80 hover:bg-slate-800'
+            }`}
+          >
+            Issues
+            <span aria-hidden className={`inline-block transition-transform ${issuesOpen ? 'rotate-180' : ''}`}>
+              ▴
+            </span>
+          </button>
+        )}
         <input
           ref={inputRef}
           value={draft}
