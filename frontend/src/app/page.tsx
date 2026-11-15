@@ -1,9 +1,10 @@
 'use client';
 
 import dynamic from 'next/dynamic';
-import { useEffect, type CSSProperties } from 'react';
+import { useEffect } from 'react';
 import { AssistantPanel } from '@/components/AssistantPanel';
-import { SkyPanoramaDrawer } from '@/components/ui/SkyPanoramaDrawer';
+import { DataSourceBadge } from '@/components/ui/DataSourceBadge';
+import { ANALYTICS_PANEL, CalendarTab, PanoramaTab, ValidationTab, tabButtonClass } from '@/components/ui/SkyPanoramaDrawer';
 import { TopCommandPill } from '@/components/ui/TopCommandPill';
 import { VerdictCard } from '@/components/ui/VerdictCard';
 import { useUrlSync } from '@/hooks/useUrlSync';
@@ -19,8 +20,6 @@ const LunarGlobe = dynamic(() => import('@/components/canvas/LunarGlobe'), {
 export default function MissionPage() {
   useUrlSync();
   const hasSite = useMissionStore((s) => s.selectedSite !== null);
-  const drawerOpen = useMissionStore((s) => s.isDrawerOpen);
-  const drawerTab = useMissionStore((s) => s.activeDrawerTab);
   const assistantOpen = useAssistantStore((s) => s.isOpen);
 
   useEffect(() => {
@@ -32,29 +31,97 @@ export default function MissionPage() {
     return () => window.removeEventListener('keydown', onKey);
   }, []);
 
-  const layoutVars = {
-    // The Timeline tab is just a scrubber now, so it only needs a slim drawer.
-    '--drawer-open-h': drawerTab === 'PANORAMA' ? '124px' : 'min(46vh, 440px)',
-    '--drawer-h': hasSite ? (drawerOpen ? 'var(--drawer-open-h)' : '48px') : '0px',
-  } as CSSProperties;
+  return (
+    <main className="flex min-h-screen flex-col gap-3 bg-[#020308] pb-3 text-slate-100">
+      {/* Zone 1 — top bar */}
+      <TopCommandPill />
+
+      {/* Zone 2 — verdict strip */}
+      {hasSite && (
+        <div className="px-3">
+          <VerdictCard />
+        </div>
+      )}
+
+      {/* Zone 3 — view (globe + panorama) | CAPCOM */}
+      <div className={`grid gap-3 px-3 ${assistantOpen ? 'xl:grid-cols-[2fr_1fr]' : ''}`}>
+        <div className="flex min-w-0 flex-col gap-3">
+          <div className={`relative overflow-hidden rounded-2xl ${hasSite ? 'h-[280px]' : 'h-[calc(100vh-88px)]'}`}>
+            <LunarGlobe />
+          </div>
+          {hasSite && (
+            <section className={ANALYTICS_PANEL} aria-label="360° sky panorama and timeline">
+              <PanoramaTab />
+            </section>
+          )}
+        </div>
+        {assistantOpen && (
+          <div className="relative min-w-0">
+            <AssistantPanel />
+          </div>
+        )}
+      </div>
+
+      {hasSite && (
+        <>
+          {/* Zone 4 — launch calendar */}
+          <LaunchCalendarZone />
+
+          {/* Zone 5 — footer */}
+          <FooterZone />
+        </>
+      )}
+    </main>
+  );
+}
+
+function LaunchCalendarZone() {
+  const site = useMissionStore((s) => s.selectedSite);
+  const epochUTC = useMissionStore((s) => s.epochUTC);
+  const days = useMissionStore((s) => s.missionDurationDays);
+  const ant = useMissionStore((s) => s.minEarthElevationDeg);
+
+  // The calendar used to load when its drawer tab opened; it is always visible now.
+  // fetchLaunchCalendar is keyed and dedupes repeat calls.
+  useEffect(() => {
+    if (site) void useMissionStore.getState().fetchLaunchCalendar();
+  }, [site, epochUTC, days, ant]);
 
   return (
-    <>
-      <main
-        className="llsn-main fixed inset-0 overflow-hidden bg-[#020308] text-slate-100"
-        data-assistant={assistantOpen ? 'open' : 'closed'}
-        style={layoutVars}
-      >
-        <LunarGlobe />
-        <TopCommandPill />
-        {hasSite && (
-          <>
-            <VerdictCard />
-            <SkyPanoramaDrawer />
-          </>
+    <div className="px-3">
+      <section data-highlight-target="calendar" className={ANALYTICS_PANEL} aria-label="365-day launch slip calendar">
+        <h3 className="px-3 pt-3 text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500">365-Day Launch Slip</h3>
+        <CalendarTab />
+      </section>
+    </div>
+  );
+}
+
+function FooterZone() {
+  const source = useMissionStore((s) => s.evaluation?.illumination.sunlit_pct.source ?? null);
+  const validationOpen = useMissionStore((s) => s.isDrawerOpen && s.activeDrawerTab === 'VALIDATION');
+
+  const toggleValidation = () => {
+    const m = useMissionStore.getState();
+    if (validationOpen) m.setDrawerOpen(false);
+    else m.setActiveDrawerTab('VALIDATION');
+  };
+
+  return (
+    <footer className="px-3">
+      <div className={ANALYTICS_PANEL}>
+        <div className="flex items-center gap-3 px-3 py-2">
+          <div className="min-w-0 flex-1">{source && <DataSourceBadge source={source} />}</div>
+          <button type="button" aria-expanded={validationOpen} onClick={toggleValidation} className={tabButtonClass(validationOpen)}>
+            NASA Validation
+          </button>
+        </div>
+        {validationOpen && (
+          <div className="border-t border-slate-800/70">
+            <ValidationTab />
+          </div>
         )}
-      </main>
-      <AssistantPanel />
-    </>
+      </div>
+    </footer>
   );
 }

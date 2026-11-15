@@ -7,72 +7,19 @@ import { SUN_ANGULAR_RADIUS_DEG, skylineElevationAt, sortSkyline, type ScrubbedE
 import { PANEL, STATUS_STYLES, fmtNum, fmtUtc } from '@/lib/format';
 import { angleDiffDeg, wrap360 } from '@/lib/geo';
 import { useMissionStore } from '@/store/useMissionStore';
-import type { DrawerTab, EphemerisTrajectory, LaunchCalendarDay, SkylinePoint, ValidationRow } from '@/types/mission';
+import type { EphemerisTrajectory, LaunchCalendarDay, SkylinePoint, ValidationRow } from '@/types/mission';
 import { DataSourceBadge } from './DataSourceBadge';
 import { InfoButton, InfoPanel, useInfo } from './InfoButton';
 
-const TABS: { id: DrawerTab; label: string }[] = [
-  { id: 'PANORAMA', label: 'Timeline' },
-  { id: 'CALENDAR', label: '365-Day Launch Slip' },
-  { id: 'VALIDATION', label: 'NASA Validation' },
-];
-
-export function SkyPanoramaDrawer() {
-  const { isOpen, tab, setTab, setOpen, site } = useMissionStore(
-    useShallow((s) => ({
-      isOpen: s.isDrawerOpen,
-      tab: s.activeDrawerTab,
-      setTab: s.setActiveDrawerTab,
-      setOpen: s.setDrawerOpen,
-      site: s.selectedSite,
-    })),
-  );
-  if (!site) return null;
-
-  return (
-    <section
-      data-highlight-target={tab === 'CALENDAR' && isOpen ? 'calendar' : undefined}
-      className={`${PANEL} fixed bottom-3 left-3 right-3 z-30 flex flex-col overflow-hidden rounded-2xl shadow-2xl shadow-black/60 transition-[height] duration-300 lg:right-[424px]`}
-      style={{ height: isOpen ? 'var(--drawer-open-h)' : '48px' }}
-      aria-label="Sky panorama and analytics"
-    >
-      <header className="flex h-12 shrink-0 items-center gap-1 border-b border-slate-800/70 px-2">
-        <button
-          type="button"
-          onClick={() => setOpen(!isOpen)}
-          aria-label={isOpen ? 'Collapse analytics drawer' : 'Expand analytics drawer'}
-          aria-expanded={isOpen}
-          className="grid h-8 w-8 place-items-center rounded-lg text-slate-400 hover:bg-slate-800/70 hover:text-slate-100"
-        >
-          <span className={`inline-block transition-transform ${isOpen ? 'rotate-180' : ''}`}>▲</span>
-        </button>
-        <nav className="flex min-w-0 flex-1 gap-1 overflow-x-auto" role="tablist">
-          {TABS.map((t) => (
-            <button
-              key={t.id}
-              type="button"
-              role="tab"
-              aria-selected={tab === t.id && isOpen}
-              onClick={() => setTab(t.id)}
-              className={`whitespace-nowrap rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${
-                tab === t.id && isOpen ? 'bg-slate-100 text-slate-950' : 'text-slate-400 hover:bg-slate-800/70 hover:text-slate-100'
-              }`}
-            >
-              {t.label}
-            </button>
-          ))}
-        </nav>
-      </header>
-      {isOpen && (
-        <div className="llsn-scroll min-h-0 flex-1 overflow-y-auto">
-          {tab === 'PANORAMA' && <PanoramaTab />}
-          {tab === 'CALENDAR' && <CalendarTab />}
-          {tab === 'VALIDATION' && <ValidationTab />}
-        </div>
-      )}
-    </section>
-  );
+/** Tab-button classes shared by the footer "NASA Validation" toggle (formerly the drawer tab style). */
+export function tabButtonClass(active: boolean): string {
+  return `whitespace-nowrap rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${
+    active ? 'bg-slate-100 text-slate-950' : 'text-slate-400 hover:bg-slate-800/70 hover:text-slate-100'
+  }`;
 }
+
+/** Panel classes of the former bottom drawer, reused by each analytics zone. */
+export const ANALYTICS_PANEL = `${PANEL} overflow-hidden rounded-2xl shadow-2xl shadow-black/60`;
 
 /* ═══════════════════════ Tab 1 — panorama + timeline scrubber ═══════════════════════ */
 
@@ -92,7 +39,7 @@ function useElementSize<T extends HTMLElement>(): [RefObject<T | null>, { width:
   return [ref, size];
 }
 
-function PanoramaTab() {
+export function PanoramaTab() {
   const { evaluation, evalStatus, scrubHour, setScrubHour, days, minEl, site } = useMissionStore(
     useShallow((s) => ({
       evaluation: s.evaluation,
@@ -132,10 +79,28 @@ function PanoramaTab() {
 
   const maxHours = days * 24;
 
-  // The 360° sky-panorama chart (PanoramaChart below) is kept in code but not shown;
-  // the 3D globe's Sun/Earth vectors carry the "watch them move" story with this scrubber.
+  const skyline = useMemo(() => (evaluation ? sortSkyline(evaluation.skyline.points) : []), [evaluation]);
+  // Pick between the chart's two built-in tick sets: polar low-sky (≤ 25°) or full-sky (90°).
+  const yMax = useMemo(() => {
+    if (!evaluation) return 25;
+    const peak = Math.max(
+      ...evaluation.trajectory.samples.map((s) => Math.max(s.sun_el_deg, s.earth_el_deg)),
+      ...skyline.map((p) => p.elevation_deg),
+    );
+    return peak > 25 ? 90 : 25;
+  }, [evaluation, skyline]);
+
+  // 360° sky panorama (terrain skyline, Sun path, Earth zone) above the timeline scrubber.
   return (
-    <div className="flex h-full flex-col justify-center gap-2 px-3 py-2">
+    <div className="flex flex-col gap-2 px-3 py-2">
+      <h3 className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500">360° Sky Panorama</h3>
+      {evaluation ? (
+        <div className="relative h-[170px]">
+          <PanoramaChart skyline={skyline} trajectory={evaluation.trajectory} ephem={ephem} minEl={minEl} yMax={yMax} />
+        </div>
+      ) : (
+        <div className="h-[170px] animate-pulse rounded-xl bg-slate-800/50" />
+      )}
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
         <button
           type="button"
@@ -425,8 +390,8 @@ function PanoramaChart({
 
 const WEEKDAYS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 
-function CalendarTab() {
-  const { calendar, status, error, epochUTC, setEpochUTC, fetchLaunchCalendar } = useMissionStore(
+export function CalendarTab() {
+  const { calendar, status, error, epochUTC, setEpochUTC, fetchLaunchCalendar, showMore } = useMissionStore(
     useShallow((s) => ({
       calendar: s.calendar,
       status: s.calendarStatus,
@@ -434,6 +399,7 @@ function CalendarTab() {
       epochUTC: s.epochUTC,
       setEpochUTC: s.setEpochUTC,
       fetchLaunchCalendar: s.fetchLaunchCalendar,
+      showMore: s.showMore,
     })),
   );
   const info = useInfo();
@@ -458,10 +424,10 @@ function CalendarTab() {
   const timeOfDay = epochUTC.slice(11, 19);
 
   if (status === 'loading' && !calendar)
-    return <div className="grid h-full place-items-center text-xs text-slate-500">Scoring 365 launch days with vectorised Skyfield…</div>;
+    return <div className="grid place-items-center py-6 text-xs text-slate-500">Scoring 365 launch days with vectorised Skyfield…</div>;
   if (status === 'error')
     return (
-      <div className="grid h-full place-items-center text-xs text-rose-300">
+      <div className="grid place-items-center py-6 text-xs text-rose-300">
         <div className="text-center">
           {error}
           <button type="button" className="ml-2 underline" onClick={() => void fetchLaunchCalendar(true)}>
@@ -473,7 +439,7 @@ function CalendarTab() {
   if (!calendar) return null;
 
   return (
-    <div className="llsn-scroll h-full overflow-y-auto p-3">
+    <div className="p-3">
       <div className="mb-2 flex flex-wrap items-center gap-3 text-[11px] text-slate-400">
         {(['GO', 'MARGINAL', 'NO-GO'] as const).map((k) => (
           <span key={k} className="flex items-center gap-1.5">
@@ -496,7 +462,7 @@ function CalendarTab() {
         </InfoPanel>
       )}
       <div className="grid grid-cols-[repeat(auto-fill,minmax(148px,1fr))] gap-x-4 gap-y-3">
-        {months.map(([month, days]) => {
+        {(showMore ? months : months.slice(0, 3)).map(([month, days]) => {
           const firstDow = new Date(`${days[0].date}T00:00:00Z`).getUTCDay();
           const label = new Date(`${month}-01T00:00:00Z`).toLocaleString('en-US', { month: 'short', year: 'numeric', timeZone: 'UTC' });
           return (
@@ -557,7 +523,7 @@ function computeDelta(row: ValidationRow, other: number | null, given: number | 
   return row.quantity.endsWith('_AZ') ? angleDiffDeg(row.local_deg, other) : row.local_deg - other;
 }
 
-function ValidationTab() {
+export function ValidationTab() {
   const { validation, status, error, fetchValidation } = useMissionStore(
     useShallow((s) => ({
       validation: s.validation,
@@ -578,10 +544,10 @@ function ValidationTab() {
   }, [validation]);
 
   if (status === 'loading' && !validation)
-    return <div className="grid h-full place-items-center text-xs text-slate-500">Comparing Skyfield DE421 against JPL Horizons…</div>;
+    return <div className="grid place-items-center py-6 text-xs text-slate-500">Comparing Skyfield DE421 against JPL Horizons…</div>;
   if (status === 'error')
     return (
-      <div className="grid h-full place-items-center text-xs text-rose-300">
+      <div className="grid place-items-center py-6 text-xs text-rose-300">
         <div>
           {error}
           <button type="button" className="ml-2 underline" onClick={() => void fetchValidation(true)}>
@@ -594,7 +560,7 @@ function ValidationTab() {
   const tol = validation.tolerance_deg;
 
   return (
-    <div className="llsn-scroll h-full overflow-auto p-3">
+    <div className="llsn-scroll max-h-[440px] overflow-auto p-3">
       <div className="mb-2 flex flex-wrap items-center gap-2 text-[11px] text-slate-400">
         <span
           className={`rounded-full px-2 py-0.5 font-mono text-[10px] ring-1 ${

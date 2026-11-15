@@ -30,7 +30,7 @@ function dateSentence(d: AlternativeDateOption): string {
 
 /** "So where — or when — should we go instead?" — 2-stage coarse-to-fine recommender output. */
 export function NearestAlternativeCard() {
-  const { alternative, status, error, site, epochUTC, fetchNearestAlternative, applyAlternative } = useMissionStore(
+  const { alternative, status, error, site, epochUTC, fetchNearestAlternative, applyAlternative, showMore } = useMissionStore(
     useShallow((s) => ({
       alternative: s.alternative,
       status: s.alternativeStatus,
@@ -39,6 +39,7 @@ export function NearestAlternativeCard() {
       epochUTC: s.epochUTC,
       fetchNearestAlternative: s.fetchNearestAlternative,
       applyAlternative: s.applyAlternative,
+      showMore: s.showMore,
     })),
   );
   const info = useInfo();
@@ -51,7 +52,7 @@ export function NearestAlternativeCard() {
     <section className="rounded-xl border border-sky-500/30 bg-gradient-to-b from-sky-500/10 to-slate-900/40 p-3">
       <header className="flex items-center justify-between gap-2">
         <h3 className="text-xs font-semibold uppercase tracking-wider text-sky-200">Where or when instead?</h3>
-        {status === 'success' && <InfoButton open={info.open} onToggle={info.toggle} controls={info.id} label="search details" />}
+        {status === 'success' && <InfoButton open={info.open || showMore} onToggle={info.toggle} controls={info.id} label="search details" />}
       </header>
 
       {status === 'loading' && (
@@ -110,7 +111,7 @@ export function NearestAlternativeCard() {
             </div>
           )}
 
-          {info.open && <SearchDetails id={info.id} alt={alternative} onRerun={() => void fetchNearestAlternative()} />}
+          {(info.open || showMore) && <SearchDetails id={info.id} alt={alternative} onRerun={() => void fetchNearestAlternative()} />}
         </div>
       )}
     </section>

@@ -24,7 +24,7 @@ function flashElements(target: string) {
 }
 
 export const useAssistantStore = create<AssistantState>()((set) => ({
-  isOpen: false,
+  isOpen: true,
   setOpen: (open) => set({ isOpen: open }),
   flash: (target) => {
     if (target === 'none' || typeof document === 'undefined') return;

@@ -53,17 +53,6 @@ body {
   scrollbar-color: #334155 transparent;
 }
 
-/* CAPCOM assistant: dock on the right (md+) and shrink the main view; fixed children follow main. */
-.llsn-main {
-  contain: layout;
-  transition: right 0.3s ease;
-}
-@media (min-width: 768px) {
-  .llsn-main[data-assistant='open'] {
-    right: 392px;
-  }
-}
-
 /* Assistant highlight pulse (~2 s) on cards tagged data-highlight-target */
 @keyframes llsn-flash {
   0%,

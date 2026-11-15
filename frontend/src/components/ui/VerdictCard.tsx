@@ -36,8 +36,9 @@ const LEARN = {
 
 type LearnKey = keyof typeof LEARN;
 
+/** Mission verdict as a full-width 4-column strip: verdict | power | comms | nearest alternative. */
 export function VerdictCard() {
-  const { site, evaluation, status, error, learnMode, minEl, evaluateSite, clearSelection, fetchNearestAlternative, altStatus } =
+  const { site, evaluation, status, error, learnMode, minEl, evaluateSite, clearSelection, fetchNearestAlternative, altStatus, showMore } =
     useMissionStore(
       useShallow((s) => ({
         site: s.selectedSite,
@@ -50,6 +51,7 @@ export function VerdictCard() {
         clearSelection: s.clearSelection,
         fetchNearestAlternative: s.fetchNearestAlternative,
         altStatus: s.alternativeStatus,
+        showMore: s.showMore,
       })),
     );
   const headerInfo = useInfo();
@@ -64,60 +66,78 @@ export function VerdictCard() {
     Math.abs(angleDiffDeg(evaluation.site.lon, site.lon)) < 1e-4
       ? evaluation
       : null;
+  const headerOpen = headerInfo.open || showMore;
 
   return (
-    <aside
-      className={`${PANEL} fixed right-3 z-30 flex w-[min(400px,calc(100vw-24px))] flex-col overflow-hidden rounded-2xl shadow-2xl shadow-black/60 bottom-[calc(var(--drawer-h)_+_24px)] lg:bottom-3`}
-      style={{ top: 'calc(var(--pill-h, 48px) + 24px)' }}
-      aria-label="Mission verdict"
-    >
-      <header className="border-b border-slate-800/80 px-4 pb-3 pt-3.5">
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0">
-            <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">Mission Verdict</p>
-            <h2 className="truncate text-base font-semibold text-slate-50" title={site.name}>
-              {site.name}
-            </h2>
-            <p className="font-mono text-xs text-slate-400">
-              {formatLatLon(site.lat, site.lon, 5)}
-              {curated?.isApproxCoord && <span className="ml-1.5 text-amber-300">≈ region centre</span>}
-            </p>
+    <section className={`${PANEL} rounded-2xl shadow-2xl shadow-black/60`} aria-label="Mission verdict">
+      <div className="grid grid-cols-2 items-start gap-3 p-3 xl:grid-cols-[1.6fr_1fr_1fr_1.6fr]">
+        {/* Column 1 — verdict badge + reasons */}
+        <header className="min-w-0">
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">Mission Verdict</p>
+              <h2 className="truncate text-base font-semibold text-slate-50" title={site.name}>
+                {site.name}
+              </h2>
+              {showMore && (
+                <p className="font-mono text-xs text-slate-400">
+                  {formatLatLon(site.lat, site.lon, 5)}
+                  {curated?.isApproxCoord && <span className="ml-1.5 text-amber-300">≈ region centre</span>}
+                </p>
+              )}
+            </div>
+            <button
+              type="button"
+              onClick={clearSelection}
+              aria-label="Close verdict"
+              className="grid h-7 w-7 shrink-0 place-items-center rounded-full text-slate-400 ring-1 ring-slate-700 hover:bg-slate-800 hover:text-slate-100"
+            >
+              ×
+            </button>
           </div>
-          <button
-            type="button"
-            onClick={clearSelection}
-            aria-label="Close verdict"
-            className="grid h-7 w-7 shrink-0 place-items-center rounded-full text-slate-400 ring-1 ring-slate-700 hover:bg-slate-800 hover:text-slate-100"
-          >
-            ×
-          </button>
-        </div>
-        <div className="mt-2.5 flex flex-wrap items-center gap-2">
-          {ev ? (
-            <span data-highlight-target="verdict" className="inline-flex rounded-full">
-              <StatusPill status={ev.overall_status} size="lg" />
-            </span>
-          ) : <span className="h-7 w-24 animate-pulse rounded-full bg-slate-800" />}
-          {status === 'loading' && <span className="text-[11px] text-slate-400">computing…</span>}
-          {ev && <InfoButton open={headerInfo.open} onToggle={headerInfo.toggle} controls={headerInfo.id} label="evaluation details" />}
-        </div>
-        {ev && headerInfo.open && (
-          <InfoPanel id={headerInfo.id}>
-            <p className="font-mono text-[10px] text-slate-400">
-              {fmtUtc(ev.epoch_utc)} · {ev.mission_duration_days} d mission · antenna ≥ {ev.min_earth_elevation_deg}° · computed in{' '}
-              {fmtNum(ev.computed_in_ms, 0)} ms
-            </p>
-            {ev.site.artemis_region && <p className="text-violet-300">Inside Artemis candidate region: {ev.site.artemis_region}</p>}
-            {curated?.isApproxCoord && <p className="text-amber-300">Coordinates are an approximate region centre, not a surveyed pad.</p>}
-            {curated && <p className="text-slate-400">Coordinate source: {curated.coordSource}</p>}
-            <DataSourceBadge source={ev.site.elevation_m.source} />
-          </InfoPanel>
-        )}
-      </header>
+          <div className="mt-2 flex flex-wrap items-center gap-2">
+            {ev ? (
+              <span data-highlight-target="verdict" className="inline-flex rounded-full">
+                <StatusPill status={ev.overall_status} size="lg" />
+              </span>
+            ) : <span className="h-7 w-24 animate-pulse rounded-full bg-slate-800" />}
+            {status === 'loading' && <span className="text-[11px] text-slate-400">computing…</span>}
+            {ev && <InfoButton open={headerOpen} onToggle={headerInfo.toggle} controls={headerInfo.id} label="evaluation details" />}
+          </div>
+          {ev && headerOpen && (
+            <InfoPanel id={headerInfo.id}>
+              <p className="font-mono text-[10px] text-slate-400">
+                {fmtUtc(ev.epoch_utc)} · {ev.mission_duration_days} d mission · antenna ≥ {ev.min_earth_elevation_deg}° · computed in{' '}
+                {fmtNum(ev.computed_in_ms, 0)} ms
+              </p>
+              {ev.site.artemis_region && <p className="text-violet-300">Inside Artemis candidate region: {ev.site.artemis_region}</p>}
+              {curated?.isApproxCoord && <p className="text-amber-300">Coordinates are an approximate region centre, not a surveyed pad.</p>}
+              {curated && <p className="text-slate-400">Coordinate source: {curated.coordSource}</p>}
+              <DataSourceBadge source={ev.site.elevation_m.source} />
+            </InfoPanel>
+          )}
+          {ev && ev.verdict_reasons.length > 0 && (
+            <div className="mt-2">
+              <ul className="space-y-1">
+                {(reasonsInfo.open || showMore ? ev.verdict_reasons : ev.verdict_reasons.slice(0, 2)).map((r) => (
+                  <li key={r} className={`flex gap-2 text-xs ${STATUS_STYLES[ev.overall_status].text}`}>
+                    <span aria-hidden>▸</span>
+                    <span className="text-slate-300">{r}</span>
+                  </li>
+                ))}
+              </ul>
+              {ev.verdict_reasons.length > 2 && !showMore && (
+                <p className="mt-1 flex items-center gap-1.5 pl-4 text-[10px] text-slate-500">
+                  <InfoButton open={reasonsInfo.open} onToggle={reasonsInfo.toggle} label="all verdict reasons" />
+                  {reasonsInfo.open ? 'Show fewer' : `${ev.verdict_reasons.length - 2} more reason${ev.verdict_reasons.length - 2 > 1 ? 's' : ''}`}
+                </p>
+              )}
+            </div>
+          )}
+        </header>
 
-      <div className="llsn-scroll min-h-0 flex-1 space-y-3 overflow-y-auto px-4 py-3">
         {status === 'error' && (
-          <div className="rounded-xl bg-rose-500/10 p-3 text-xs text-rose-200 ring-1 ring-rose-500/30">
+          <div className="col-span-full rounded-xl bg-rose-500/10 p-3 text-xs text-rose-200 ring-1 ring-rose-500/30 xl:col-span-3">
             <p className="font-semibold">Evaluation failed</p>
             <p className="mt-1 text-rose-200/80">{error}</p>
             <p className="mt-1 font-mono text-[10px] text-rose-200/60">backend: {API_BASE}</p>
@@ -127,137 +147,129 @@ export function VerdictCard() {
           </div>
         )}
 
-        {!ev && status === 'loading' && <SkeletonGrid />}
+        {!ev && status === 'loading' &&
+          Array.from({ length: 3 }, (_, i) => <div key={i} aria-busy="true" className="h-20 animate-pulse rounded-xl bg-slate-800/50" />)}
 
         {ev && (
           <>
-            {ev.verdict_reasons.length > 0 && (
-              <div>
-                <ul className="space-y-1">
-                  {(reasonsInfo.open ? ev.verdict_reasons : ev.verdict_reasons.slice(0, 2)).map((r) => (
-                    <li key={r} className={`flex gap-2 text-xs ${STATUS_STYLES[ev.overall_status].text}`}>
-                      <span aria-hidden>▸</span>
-                      <span className="text-slate-300">{r}</span>
-                    </li>
-                  ))}
-                </ul>
-                {ev.verdict_reasons.length > 2 && (
-                  <p className="mt-1 flex items-center gap-1.5 pl-4 text-[10px] text-slate-500">
-                    <InfoButton open={reasonsInfo.open} onToggle={reasonsInfo.toggle} label="all verdict reasons" />
-                    {reasonsInfo.open ? 'Show fewer' : `${ev.verdict_reasons.length - 2} more reason${ev.verdict_reasons.length - 2 > 1 ? 's' : ''}`}
-                  </p>
-                )}
-              </div>
-            )}
+            {/* Column 2 — power */}
+            <MetricTile target="power" label="Sunlit" metric={ev.illumination.sunlit_pct} display={fmtNum(ev.illumination.sunlit_pct.value, 1)} learn={learnMode ? 'sunlit' : null} />
 
-            {(ev.overall_status !== 'GO' || altStatus !== 'idle') && <NearestAlternativeCard />}
+            {/* Column 3 — comms */}
+            <MetricTile
+              target="comms"
+              label={`Earth contact ≥ ${minEl}°`}
+              metric={ev.illumination.earth_contact_pct}
+              display={fmtNum(ev.illumination.earth_contact_pct.value, 1)}
+              bar={{ value: ev.illumination.earth_contact_pct.value, max: 100 }}
+              learn={learnMode ? 'earth' : null}
+            />
 
-            <Section title="Illumination & Comms">
-              <MetricTile target="power" label="Sunlit" metric={ev.illumination.sunlit_pct} display={fmtNum(ev.illumination.sunlit_pct.value, 1)} learn={learnMode ? 'sunlit' : null} />
-              <MetricTile
-                target="power"
-                label="Longest darkness"
-                metric={ev.illumination.longest_darkness_hours}
-                display={fmtNum(ev.illumination.longest_darkness_hours.value, 1)}
-                learn={learnMode ? 'darkness' : null}
-              />
-              <MetricTile
-                target="power"
-                label="Time to sunset"
-                metric={ev.illumination.time_to_sunset_hours}
-                display={ev.illumination.time_to_sunset_hours.value == null ? 'None' : fmtHours(ev.illumination.time_to_sunset_hours.value)}
-                hideUnit
-                hint={ev.illumination.time_to_sunset_hours.value == null ? 'Sun stays up all mission' : undefined}
-                learn={learnMode ? 'sunset' : null}
-              />
-              <MetricTile
-                target="comms"
-                label="Time to Earthset"
-                metric={ev.illumination.time_to_earthset_hours}
-                display={ev.illumination.time_to_earthset_hours.value == null ? 'None' : fmtHours(ev.illumination.time_to_earthset_hours.value)}
-                hideUnit
-                hint={ev.illumination.time_to_earthset_hours.value == null ? 'Earth stays in view' : undefined}
-                learn={learnMode ? 'earthset' : null}
-              />
-              <MetricTile
-                target="comms"
-                wide
-                label={`Earth contact ≥ ${minEl}°`}
-                metric={ev.illumination.earth_contact_pct}
-                display={fmtNum(ev.illumination.earth_contact_pct.value, 1)}
-                bar={{ value: ev.illumination.earth_contact_pct.value, max: 100 }}
-                learn={learnMode ? 'earth' : null}
-              />
-            </Section>
+            {/* Column 4 — nearest viable alternative */}
+            <div className="min-w-0">
+              {(ev.overall_status !== 'GO' || altStatus !== 'idle') && <NearestAlternativeCard />}
+              {ev.overall_status === 'GO' && altStatus === 'idle' && (
+                <button
+                  type="button"
+                  onClick={() => void fetchNearestAlternative()}
+                  className="w-full rounded-xl border border-dashed border-slate-700 py-2 text-xs text-slate-300 hover:border-sky-500/60 hover:text-sky-200"
+                >
+                  Find better pad / date
+                </button>
+              )}
+            </div>
 
-            <section className="rounded-xl border border-slate-800/80 bg-slate-900/50 p-2.5">
-              <div className="flex items-center justify-between gap-2">
-                <h3 className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500">Site conditions</h3>
-                <InfoButton open={siteInfo.open} onToggle={siteInfo.toggle} controls={siteInfo.id} label="terrain, temperature and space-weather details" />
-              </div>
-              <div className="mt-1.5 grid grid-cols-3 gap-2 font-mono text-[11px] tabular-nums">
-                <SummaryStat label="Slope" status={ev.terrain.slope_deg.status} value={`${fmtNum(ev.terrain.slope_deg.value, 1)}°`} />
-                <SummaryStat
-                  label="Surface temp"
-                  status={ev.thermal.surface_temperature_k.status}
-                  value={`${fmtNum(ev.thermal.surface_temperature_k.value.min_k, 0)}–${fmtNum(ev.thermal.surface_temperature_k.value.max_k, 0)} K`}
-                />
-                <SummaryStat
-                  label="Space weather"
-                  status={ev.space_weather.status === 'UNKNOWN' ? 'MARGINAL' : ev.space_weather.eva_status}
-                  value={ev.space_weather.status === 'ELEVATED RADIATION' ? 'ELEVATED' : ev.space_weather.status}
-                />
-              </div>
-              {siteInfo.open && (
-                <div id={siteInfo.id} className="mt-3 space-y-3">
-                <Section title="Terrain, Thermal & ISRU">
-                  <ThermalTile ev={ev} learn={learnMode} />
+            {/* More mode — remaining metrics and site conditions */}
+            {showMore && (
+              <div className="col-span-full grid grid-cols-1 gap-3 xl:grid-cols-2">
+                <Section title="Illumination & Comms">
                   <MetricTile
-                    label="Tip-over slope"
-                    metric={ev.terrain.slope_deg}
-                    display={fmtNum(ev.terrain.slope_deg.value, 1)}
-                    hint="warn > 10° · fail > 15°"
-                    bar={{ value: ev.terrain.slope_deg.value, max: 20, marks: [10, 15] }}
-                    learn={learnMode ? 'slope' : null}
-                  />
-                  <MetricTile label="Roughness (RMS)" metric={ev.terrain.roughness_m} display={fmtNum(ev.terrain.roughness_m.value, 2)} learn={learnMode ? 'roughness' : null} />
-                  <MetricTile
-                    label="Boulder hazard"
-                    metric={ev.hazards.rock_abundance_pct}
-                    display={ev.hazards.rock_abundance_pct.value == null ? 'No data' : fmtNum(ev.hazards.rock_abundance_pct.value, 2)}
-                    hideUnit={ev.hazards.rock_abundance_pct.value == null}
-                    hint={ev.hazards.rock_abundance_pct.value == null ? 'Diviner RA covers ±60° only' : undefined}
-                    learn={learnMode ? 'rock' : null}
+                    target="power"
+                    label="Longest darkness"
+                    metric={ev.illumination.longest_darkness_hours}
+                    display={fmtNum(ev.illumination.longest_darkness_hours.value, 1)}
+                    learn={learnMode ? 'darkness' : null}
                   />
                   <MetricTile
-                    label="Nearest PSR cold trap"
-                    metric={ev.isru.nearest_ice_psr_km}
-                    display={ev.isru.nearest_ice_psr_km.value == null ? 'No data' : fmtNum(ev.isru.nearest_ice_psr_km.value, 2)}
-                    hideUnit={ev.isru.nearest_ice_psr_km.value == null}
-                    hint={ev.isru.nearest_ice_psr_km.value == null ? 'Outside the 65°S PSR map' : undefined}
-                    learn={learnMode ? 'ice' : null}
+                    target="power"
+                    label="Time to sunset"
+                    metric={ev.illumination.time_to_sunset_hours}
+                    display={ev.illumination.time_to_sunset_hours.value == null ? 'None' : fmtHours(ev.illumination.time_to_sunset_hours.value)}
+                    hideUnit
+                    hint={ev.illumination.time_to_sunset_hours.value == null ? 'Sun stays up all mission' : undefined}
+                    learn={learnMode ? 'sunset' : null}
                   />
-                  <MetricTile wide label="Pad elevation (1737.4 km datum)" metric={ev.site.elevation_m} display={fmtNum(ev.site.elevation_m.value, 0)} />
+                  <MetricTile
+                    target="comms"
+                    label="Time to Earthset"
+                    metric={ev.illumination.time_to_earthset_hours}
+                    display={ev.illumination.time_to_earthset_hours.value == null ? 'None' : fmtHours(ev.illumination.time_to_earthset_hours.value)}
+                    hideUnit
+                    hint={ev.illumination.time_to_earthset_hours.value == null ? 'Earth stays in view' : undefined}
+                    learn={learnMode ? 'earthset' : null}
+                  />
                 </Section>
 
-                <SpaceWeatherBadge sw={ev.space_weather} learn={learnMode} />
-                </div>
-              )}
-            </section>
+                <section className="rounded-xl border border-slate-800/80 bg-slate-900/50 p-2.5">
+                  <div className="flex items-center justify-between gap-2">
+                    <h3 className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500">Site conditions</h3>
+                    <InfoButton open={siteInfo.open} onToggle={siteInfo.toggle} controls={siteInfo.id} label="terrain, temperature and space-weather details" />
+                  </div>
+                  <div className="mt-1.5 grid grid-cols-3 gap-2 font-mono text-[11px] tabular-nums">
+                    <SummaryStat label="Slope" status={ev.terrain.slope_deg.status} value={`${fmtNum(ev.terrain.slope_deg.value, 1)}°`} />
+                    <SummaryStat
+                      label="Surface temp"
+                      status={ev.thermal.surface_temperature_k.status}
+                      value={`${fmtNum(ev.thermal.surface_temperature_k.value.min_k, 0)}–${fmtNum(ev.thermal.surface_temperature_k.value.max_k, 0)} K`}
+                    />
+                    <SummaryStat
+                      label="Space weather"
+                      status={ev.space_weather.status === 'UNKNOWN' ? 'MARGINAL' : ev.space_weather.eva_status}
+                      value={ev.space_weather.status === 'ELEVATED RADIATION' ? 'ELEVATED' : ev.space_weather.status}
+                    />
+                  </div>
+                  {siteInfo.open && (
+                    <div id={siteInfo.id} className="mt-3 space-y-3">
+                      <Section title="Terrain, Thermal & ISRU">
+                        <ThermalTile ev={ev} learn={learnMode} />
+                        <MetricTile
+                          label="Tip-over slope"
+                          metric={ev.terrain.slope_deg}
+                          display={fmtNum(ev.terrain.slope_deg.value, 1)}
+                          hint="warn > 10° · fail > 15°"
+                          bar={{ value: ev.terrain.slope_deg.value, max: 20, marks: [10, 15] }}
+                          learn={learnMode ? 'slope' : null}
+                        />
+                        <MetricTile label="Roughness (RMS)" metric={ev.terrain.roughness_m} display={fmtNum(ev.terrain.roughness_m.value, 2)} learn={learnMode ? 'roughness' : null} />
+                        <MetricTile
+                          label="Boulder hazard"
+                          metric={ev.hazards.rock_abundance_pct}
+                          display={ev.hazards.rock_abundance_pct.value == null ? 'No data' : fmtNum(ev.hazards.rock_abundance_pct.value, 2)}
+                          hideUnit={ev.hazards.rock_abundance_pct.value == null}
+                          hint={ev.hazards.rock_abundance_pct.value == null ? 'Diviner RA covers ±60° only' : undefined}
+                          learn={learnMode ? 'rock' : null}
+                        />
+                        <MetricTile
+                          label="Nearest PSR cold trap"
+                          metric={ev.isru.nearest_ice_psr_km}
+                          display={ev.isru.nearest_ice_psr_km.value == null ? 'No data' : fmtNum(ev.isru.nearest_ice_psr_km.value, 2)}
+                          hideUnit={ev.isru.nearest_ice_psr_km.value == null}
+                          hint={ev.isru.nearest_ice_psr_km.value == null ? 'Outside the 65°S PSR map' : undefined}
+                          learn={learnMode ? 'ice' : null}
+                        />
+                        <MetricTile wide label="Pad elevation (1737.4 km datum)" metric={ev.site.elevation_m} display={fmtNum(ev.site.elevation_m.value, 0)} />
+                      </Section>
 
-            {ev.overall_status === 'GO' && altStatus === 'idle' && (
-              <button
-                type="button"
-                onClick={() => void fetchNearestAlternative()}
-                className="w-full rounded-xl border border-dashed border-slate-700 py-2 text-xs text-slate-300 hover:border-sky-500/60 hover:text-sky-200"
-              >
-                Find better pad / date
-              </button>
+                      <SpaceWeatherBadge sw={ev.space_weather} learn={learnMode} />
+                    </div>
+                  )}
+                </section>
+              </div>
             )}
           </>
         )}
       </div>
-    </aside>
+    </section>
   );
 }
 
@@ -294,12 +306,14 @@ function MetricTile({
 }) {
   const st = STATUS_STYLES[metric.status];
   const info = useInfo();
+  const showMore = useMissionStore((s) => s.showMore);
+  const infoOpen = info.open || showMore;
   return (
     <div data-highlight-target={target} className={`rounded-xl border border-slate-800/80 bg-slate-900/50 p-2.5 ${wide ? 'col-span-2' : ''}`}>
       <div className="flex items-center justify-between gap-2">
         <span className="text-[10px] font-medium uppercase tracking-wide text-slate-400">{label}</span>
         <span className="flex items-center gap-1.5">
-          <InfoButton open={info.open} onToggle={info.toggle} controls={info.id} label={`${label} data source`} />
+          <InfoButton open={infoOpen} onToggle={info.toggle} controls={info.id} label={`${label} data source`} />
           <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${st.dot}`} title={metric.status} />
         </span>
       </div>
@@ -316,7 +330,7 @@ function MetricTile({
           ))}
         </div>
       )}
-      {info.open && (
+      {infoOpen && (
         <InfoPanel id={info.id}>
           <DataSourceBadge source={metric.source} />
           <p className="text-[10px] text-slate-500">Status: {metric.status}</p>
@@ -413,14 +427,4 @@ function SpaceWeatherBadge({ sw, learn }: { sw: SpaceWeatherStatus; learn: boole
 
 function LearnNote({ children }: { children: ReactNode }) {
   return <p className="mt-2 border-l-2 border-sky-500/50 pl-2 text-[11px] leading-snug text-slate-300/90">{children}</p>;
-}
-
-function SkeletonGrid() {
-  return (
-    <div className="grid grid-cols-2 gap-2" aria-busy="true">
-      {Array.from({ length: 8 }, (_, i) => (
-        <div key={i} className={`h-20 animate-pulse rounded-xl bg-slate-800/50 ${i === 4 ? 'col-span-2' : ''}`} />
-      ))}
-    </div>
-  );
 }

@@ -39,6 +39,8 @@ export interface MissionState {
   minEarthElevationDeg: number;
   activeLayer: LayerId;
   learnMode: boolean;
+  /** UI-only "More" mode: reveals secondary controls and details (not URL-synced). */
+  showMore: boolean;
   activeDrawerTab: DrawerTab;
   isDrawerOpen: boolean;
   /** Hours since epochUTC on the timeline scrubber (local-only, no network). */
@@ -86,6 +88,7 @@ export interface MissionActions {
   setMinEarthElevationDeg: (deg: number) => void;
   setActiveLayer: (layer: LayerId) => void;
   setLearnMode: (on: boolean) => void;
+  setShowMore: (on: boolean) => void;
   setActiveDrawerTab: (tab: DrawerTab) => void;
   setDrawerOpen: (open: boolean) => void;
   setScrubHour: (h: number) => void;
@@ -137,6 +140,7 @@ export const useMissionStore = create<MissionStore>()((set, get) => ({
   minEarthElevationDeg: 5,
   activeLayer: 'BASE_CGI',
   learnMode: false,
+  showMore: false,
   activeDrawerTab: 'PANORAMA',
   isDrawerOpen: true,
   scrubHour: 0,
@@ -234,6 +238,7 @@ export const useMissionStore = create<MissionStore>()((set, get) => ({
   },
   setActiveLayer: (layer) => set({ activeLayer: layer }),
   setLearnMode: (on) => set({ learnMode: on }),
+  setShowMore: (on) => set({ showMore: on }),
   setActiveDrawerTab: (tab) => {
     set({ activeDrawerTab: tab, isDrawerOpen: true });
     if (tab === 'CALENDAR') void get().fetchLaunchCalendar();

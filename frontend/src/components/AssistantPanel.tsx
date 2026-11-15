@@ -305,7 +305,7 @@ export function AssistantPanel() {
 
   return (
     <aside
-      className={`${PANEL} fixed inset-2 z-50 flex flex-col overflow-hidden rounded-2xl shadow-2xl shadow-black/60 md:inset-auto md:bottom-3 md:right-3 md:top-3 md:w-[380px]`}
+      className={`${PANEL} flex h-[560px] flex-col overflow-hidden rounded-2xl shadow-2xl shadow-black/60 xl:absolute xl:inset-0 xl:h-auto`}
       aria-label="CAPCOM mission assistant"
     >
       {/* header */}

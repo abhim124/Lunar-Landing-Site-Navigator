@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import { PANEL } from '@/lib/format';
 import { normalizeLon } from '@/lib/geo';
@@ -36,16 +36,17 @@ export function TopCommandPill() {
       setAnt: st.setMinEarthElevationDeg,
       setLayer: st.setActiveLayer,
       setLearn: st.setLearnMode,
+      expanded: st.showMore,
+      setExpanded: st.setShowMore,
     })),
   );
 
   const [latStr, setLatStr] = useState('');
   const [lonStr, setLonStr] = useState('');
   const [coordError, setCoordError] = useState(false);
-  const [expanded, setExpanded] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
   const [antLocal, setAntLocal] = useState(s.ant);
-  const pillRef = useRef<HTMLDivElement>(null);
+  const { expanded, setExpanded } = s;
 
   useEffect(() => {
     if (s.selectedSite) {
@@ -54,17 +55,6 @@ export function TopCommandPill() {
     }
   }, [s.selectedSite]);
   useEffect(() => setAntLocal(s.ant), [s.ant]);
-
-  // Publish the pill height so the Verdict Card can sit just below it whatever the wrap.
-  useEffect(() => {
-    const el = pillRef.current;
-    if (!el) return;
-    const ro = new ResizeObserver(() =>
-      document.documentElement.style.setProperty('--pill-h', `${el.getBoundingClientRect().height}px`),
-    );
-    ro.observe(el);
-    return () => ro.disconnect();
-  }, []);
 
   useEffect(() => {
     if (!toast) return;
@@ -94,10 +84,9 @@ export function TopCommandPill() {
   };
 
   return (
-    <div className="pointer-events-none fixed inset-x-0 top-3 z-40 flex flex-col items-center px-3">
+    <div className="relative z-40 px-3 pt-3">
       <div
-        ref={pillRef}
-        className={`${PANEL} pointer-events-auto flex max-w-full flex-wrap items-center justify-center gap-x-2 gap-y-1.5 rounded-2xl px-2.5 py-1.5 shadow-2xl shadow-black/50`}
+        className={`${PANEL} flex w-full flex-wrap items-center justify-start gap-x-2 gap-y-1.5 rounded-2xl px-2.5 py-1.5 shadow-2xl shadow-black/50 ${expanded ? '' : 'xl:flex-nowrap'}`}
       >
         <div className="flex items-center gap-2 pr-1">
           <span className="grid h-7 w-7 place-items-center rounded-full bg-gradient-to-br from-slate-200 to-slate-500 text-[11px] font-black text-slate-950 shadow-inner">
@@ -129,7 +118,42 @@ export function TopCommandPill() {
           </optgroup>
         </select>
 
-        <div className={`${expanded ? 'contents' : 'hidden'} xl:contents`}>
+        <label className="flex items-center gap-1.5">
+          <span className={labelCls}>UTC</span>
+          <input
+            type="datetime-local"
+            aria-label="Mission epoch (UTC)"
+            step={60}
+            value={s.epochUTC.slice(0, 16)}
+            onChange={(e) => e.target.value && s.setEpochUTC(`${e.target.value}:00Z`)}
+            className={`${fieldCls} font-mono`}
+          />
+        </label>
+
+        <label className="flex items-center gap-1.5">
+          <span className={labelCls}>Days</span>
+          <input
+            type="number"
+            min={1}
+            max={30}
+            aria-label="Mission duration in days"
+            value={s.days}
+            onChange={(e) => s.setDays(Number(e.target.value) || 1)}
+            className={`${fieldCls} w-14 font-mono`}
+          />
+        </label>
+
+        <button
+          type="button"
+          onClick={share}
+          className="h-8 rounded-lg bg-slate-100 px-3 text-xs font-semibold text-slate-950 hover:bg-white"
+        >
+          Share
+        </button>
+
+        <CapcomButton />
+
+        <div className={expanded ? 'contents' : 'hidden'}>
           <form onSubmit={submitCoords} className="flex items-center gap-1">
             <input
               aria-label="Latitude"
@@ -151,31 +175,6 @@ export function TopCommandPill() {
               Go
             </button>
           </form>
-
-          <label className="flex items-center gap-1.5">
-            <span className={labelCls}>UTC</span>
-            <input
-              type="datetime-local"
-              aria-label="Mission epoch (UTC)"
-              step={60}
-              value={s.epochUTC.slice(0, 16)}
-              onChange={(e) => e.target.value && s.setEpochUTC(`${e.target.value}:00Z`)}
-              className={`${fieldCls} font-mono`}
-            />
-          </label>
-
-          <label className="flex items-center gap-1.5">
-            <span className={labelCls}>Days</span>
-            <input
-              type="number"
-              min={1}
-              max={30}
-              aria-label="Mission duration in days"
-              value={s.days}
-              onChange={(e) => s.setDays(Number(e.target.value) || 1)}
-              className={`${fieldCls} w-14 font-mono`}
-            />
-          </label>
 
           <label className="flex items-center gap-1.5" title="Earth Antenna Cutoff: minimum Earth elevation for a direct-to-Earth link">
             <span className={labelCls}>Earth Ant.</span>
@@ -222,45 +221,37 @@ export function TopCommandPill() {
             </span>
             Learn
           </button>
+
+          <SceneStatusDot scene={s.scene} />
         </div>
 
-        <SceneStatusDot scene={s.scene} />
-
-        <CapcomButton />
-
         <button
           type="button"
-          onClick={share}
-          className="h-8 rounded-lg bg-slate-100 px-3 text-xs font-semibold text-slate-950 hover:bg-white"
-        >
-          Share
-        </button>
-
-        <button
-          type="button"
-          aria-label={expanded ? 'Hide mission controls' : 'Show mission controls'}
+          aria-label={expanded ? 'Hide extra controls and details' : 'Show extra controls and details'}
           aria-expanded={expanded}
-          onClick={() => setExpanded((v) => !v)}
-          className="h-8 rounded-lg px-2 text-xs text-slate-300 ring-1 ring-slate-700/80 hover:bg-slate-800/60 xl:hidden"
+          onClick={() => setExpanded(!expanded)}
+          className="h-8 rounded-lg px-2 text-xs text-slate-300 ring-1 ring-slate-700/80 hover:bg-slate-800/60"
         >
-          {expanded ? 'Less' : 'Controls'}
+          {expanded ? 'Less' : 'More'}
         </button>
       </div>
 
-      {s.layer !== 'BASE_CGI' && s.scene.overlayDetail && (
-        <div className="pointer-events-none mt-1.5 rounded-full bg-slate-950/70 px-2.5 py-0.5 font-mono text-[10px] text-slate-400 ring-1 ring-slate-800/80">
-          {s.scene.overlayDetail}
-        </div>
-      )}
+      <div className="pointer-events-none absolute inset-x-0 top-full flex flex-col items-center">
+        {s.layer !== 'BASE_CGI' && s.scene.overlayDetail && (
+          <div className="mt-1.5 rounded-full bg-slate-950/70 px-2.5 py-0.5 font-mono text-[10px] text-slate-400 ring-1 ring-slate-800/80">
+            {s.scene.overlayDetail}
+          </div>
+        )}
 
-      <div
-        role="status"
-        aria-live="polite"
-        className={`mt-2 rounded-full bg-emerald-500/15 px-3 py-1 text-xs font-medium text-emerald-200 ring-1 ring-emerald-400/40 backdrop-blur transition-all duration-300 ${
-          toast ? 'translate-y-0 opacity-100' : '-translate-y-2 opacity-0'
-        }`}
-      >
-        {toast ?? ' '}
+        <div
+          role="status"
+          aria-live="polite"
+          className={`mt-2 rounded-full bg-emerald-500/15 px-3 py-1 text-xs font-medium text-emerald-200 ring-1 ring-emerald-400/40 backdrop-blur transition-all duration-300 ${
+            toast ? 'translate-y-0 opacity-100' : '-translate-y-2 opacity-0'
+          }`}
+        >
+          {toast ?? ' '}
+        </div>
       </div>
     </div>
   );
