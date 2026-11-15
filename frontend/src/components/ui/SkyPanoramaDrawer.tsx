@@ -10,6 +10,7 @@ import { useMissionStore } from '@/store/useMissionStore';
 import type { EphemerisTrajectory, LaunchCalendarDay, SkylinePoint, ValidationRow } from '@/types/mission';
 import { DataSourceBadge } from './DataSourceBadge';
 import { InfoButton, InfoPanel, useInfo } from './InfoButton';
+import { LearnBlock } from './LearnBlock';
 
 /** Tab-button classes shared by the footer "NASA Validation" toggle (formerly the drawer tab style). */
 export function tabButtonClass(active: boolean): string {
@@ -84,6 +85,8 @@ export function PanoramaTab() {
   return (
     <div className="flex flex-col gap-2 px-3 py-2">
       <h3 className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500">Mission Timeline</h3>
+      <LearnBlock id="globe" className="mt-0" />
+      <LearnBlock id="timeline" className="mt-0" />
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
         <button
           type="button"

@@ -18,6 +18,7 @@ import { useAssistantStore } from '@/store/useAssistantStore';
 import { useMissionStore } from '@/store/useMissionStore';
 import type { AssistantReply, AssistantTurn, MissionPhase } from '@/types/assistant';
 import type { SelectedSite } from '@/types/mission';
+import { LearnBlock } from '@/components/ui/LearnBlock';
 
 /* ───────────── Web Speech API (not in TS's lib.dom) ───────────── */
 
@@ -518,6 +519,7 @@ export function AssistantPanel() {
 
       {/* transcript */}
       <div ref={listRef} className="llsn-scroll min-h-0 flex-1 space-y-2.5 overflow-y-auto px-3 py-3" aria-live="polite">
+        <LearnBlock id="capcom" className="mt-0" />
         {messages.length === 0 && !listening && (
           <p className="text-xs leading-relaxed text-slate-400">
             CAPCOM standing by. {compact ? 'Type or hold the mic to report a problem, or open Issues for quick buttons.' : 'Tap an issue, type, or hold the mic to talk.'} Answers use the selected site, date and the numbers on screen.
@@ -738,6 +740,7 @@ function ContingencyCard({ c, onUndo }: { c: ContingencyState; onUndo: () => voi
     <div className="flex justify-start">
       <div className={`w-full max-w-[92%] rounded-2xl rounded-bl-sm px-3 py-2 ring-1 ${tone}`} data-testid="contingency-card">
         <p className="mb-0.5 font-mono text-[9px] font-semibold tracking-[0.2em] text-sky-400/80">SITE RE-ASSESSMENT · {preset.label.toUpperCase()}</p>
+        <LearnBlock id="contingency" className="mb-1 mt-0" />
         {c.status === 'loading' && (
           <p className="flex items-center gap-2 text-xs text-slate-300">
             <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-sky-400" />

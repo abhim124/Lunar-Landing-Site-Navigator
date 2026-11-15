@@ -1,13 +1,15 @@
 'use client';
 
 import { useEffect } from 'react';
+import { parseExpert, parseMode, writeExpert } from '@/lib/displayMode';
 import { normalizeEpoch } from '@/lib/format';
 import { useMissionStore, type MissionStore, type UrlHydration } from '@/store/useMissionStore';
 import { LAYER_IDS, type LayerId } from '@/types/mission';
 
 /**
  * Bi-directional URL ⇄ store sync:
- *   ?lat=-84.79059&lon=29.19567&date=2025-03-06T17:28:00Z&days=7&ant=5&layer=BASE_CGI[&site=im-2][&learn=1]
+ *   ?lat=-84.79059&lon=29.19567&date=2025-03-06T17:28:00Z&days=7&ant=5&layer=BASE_CGI[&site=im-2][&mode=learn|expert][&pa=…]
+ *   (legacy `learn=1` still opens Learn mode)
  * Reads once on mount, then mirrors every relevant store change with history.replaceState
  * (throttled — Safari rate-limits replaceState to ~100 calls / 30 s).
  */
@@ -28,7 +30,8 @@ export function parseMissionParams(search: string): UrlHydration {
     days: num(p.get('days')),
     ant: num(p.get('ant')),
     layer: layer && (LAYER_IDS as readonly string[]).includes(layer) ? (layer as LayerId) : undefined,
-    learn: p.has('learn') ? p.get('learn') === '1' : undefined,
+    mode: parseMode(p),
+    expert: parseExpert(p),
     siteId: p.get('site') ?? undefined,
   };
   if (lat !== undefined && lon !== undefined && lat >= -90 && lat <= 90 && lon >= -360 && lon <= 360) {
@@ -49,7 +52,8 @@ export function buildMissionSearch(s: MissionStore): string {
   p.set('ant', String(s.minEarthElevationDeg));
   p.set('layer', s.activeLayer);
   if (s.selectedSite?.regionId) p.set('site', s.selectedSite.regionId);
-  if (s.learnMode) p.set('learn', '1');
+  if (s.displayMode !== 'standard') p.set('mode', s.displayMode);
+  if (s.displayMode === 'expert') writeExpert(p, s.expert);
   // URLSearchParams encodes ':' — keep the date human-readable in shared links.
   return p.toString().replace(/%3A/gi, ':');
 }
@@ -63,7 +67,8 @@ const syncedSlice = (s: MissionStore) =>
     s.missionDurationDays,
     s.minEarthElevationDeg,
     s.activeLayer,
-    s.learnMode,
+    s.displayMode,
+    JSON.stringify(s.expert),
   ].join('|');
 
 export function useUrlSync(): void {

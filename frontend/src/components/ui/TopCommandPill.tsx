@@ -7,6 +7,7 @@ import { normalizeLon } from '@/lib/geo';
 import { CURATED_SITES } from '@/lib/siteRegistry';
 import { OVERLAY_LAYERS } from '@/lib/wmtsTileLoader';
 import { useMissionStore, type SceneStatus } from '@/store/useMissionStore';
+import { ModeSwitch } from './ModeSwitch';
 import { CapcomButton } from '@/components/AssistantPanel';
 import type { LayerId } from '@/types/mission';
 
@@ -27,7 +28,6 @@ export function TopCommandPill() {
       days: st.missionDurationDays,
       ant: st.minEarthElevationDeg,
       layer: st.activeLayer,
-      learn: st.learnMode,
       scene: st.sceneStatus,
       selectCuratedSite: st.selectCuratedSite,
       selectSite: st.selectSite,
@@ -35,9 +35,7 @@ export function TopCommandPill() {
       setDays: st.setMissionDurationDays,
       setAnt: st.setMinEarthElevationDeg,
       setLayer: st.setActiveLayer,
-      setLearn: st.setLearnMode,
       expanded: st.showMore,
-      setExpanded: st.setShowMore,
     })),
   );
 
@@ -46,7 +44,8 @@ export function TopCommandPill() {
   const [coordError, setCoordError] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
   const [antLocal, setAntLocal] = useState(s.ant);
-  const { expanded, setExpanded } = s;
+  // Expert mode shows the secondary controls (coordinates, antenna cutoff, map layer) the old "More" button revealed.
+  const { expanded } = s;
 
   useEffect(() => {
     if (s.selectedSite) {
@@ -151,6 +150,8 @@ export function TopCommandPill() {
           Share
         </button>
 
+        <ModeSwitch />
+
         <CapcomButton />
 
         <div className={expanded ? 'contents' : 'hidden'}>
@@ -207,33 +208,9 @@ export function TopCommandPill() {
             ))}
           </select>
 
-          <button
-            type="button"
-            role="switch"
-            aria-checked={s.learn}
-            onClick={() => s.setLearn(!s.learn)}
-            className="flex h-8 items-center gap-1.5 rounded-lg px-1.5 text-xs text-slate-300 hover:bg-slate-800/60"
-          >
-            <span className={`relative h-4 w-7 rounded-full transition-colors ${s.learn ? 'bg-sky-500/70' : 'bg-slate-700'}`}>
-              <span
-                className={`absolute top-0.5 h-3 w-3 rounded-full bg-white transition-transform ${s.learn ? 'translate-x-3.5' : 'translate-x-0.5'}`}
-              />
-            </span>
-            Learn
-          </button>
-
           <SceneStatusDot scene={s.scene} />
         </div>
 
-        <button
-          type="button"
-          aria-label={expanded ? 'Hide extra controls and details' : 'Show extra controls and details'}
-          aria-expanded={expanded}
-          onClick={() => setExpanded(!expanded)}
-          className="h-8 rounded-lg px-2 text-xs text-slate-300 ring-1 ring-slate-700/80 hover:bg-slate-800/60"
-        >
-          {expanded ? 'Less' : 'More'}
-        </button>
       </div>
 
       <div className="pointer-events-none absolute inset-x-0 top-full flex flex-col items-center">

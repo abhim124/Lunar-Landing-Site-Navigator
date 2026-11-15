@@ -1,0 +1,23 @@
+{
+  "_note": "ILLUSTRATIVE values for a hackathon demo, NOT measurements. Water-equivalent hydrogen (WEH, wt%) chosen to be in the broad range reported for the lunar south polar region by orbital neutron spectrometers. A real mission would use Lunar Prospector NS and LRO LEND neutron data, LRO LAMP far-UV albedo, and Chandrayaan-1 M3 spectra.",
+  "sites": [
+    { "id": "apollo-11", "weh_wt_pct": 0.01 },
+    { "id": "chandrayaan-3", "weh_wt_pct": 0.05 },
+    { "id": "im-1", "weh_wt_pct": 0.1 },
+    { "id": "im-2", "weh_wt_pct": 0.12 },
+    { "id": "artemis-peak-near-shackleton", "weh_wt_pct": 0.45 },
+    { "id": "artemis-connecting-ridge", "weh_wt_pct": 0.5 },
+    { "id": "artemis-connecting-ridge-extension", "weh_wt_pct": 0.45 },
+    { "id": "artemis-de-gerlache-rim-1", "weh_wt_pct": 0.4 },
+    { "id": "artemis-de-gerlache-rim-2", "weh_wt_pct": 0.35 },
+    { "id": "artemis-de-gerlache-kocher-massif", "weh_wt_pct": 0.25 },
+    { "id": "artemis-haworth", "weh_wt_pct": 0.35 },
+    { "id": "artemis-malapert-massif", "weh_wt_pct": 0.15 },
+    { "id": "artemis-nobile-rim-1", "weh_wt_pct": 0.25 },
+    { "id": "artemis-mons-mouton-plateau", "weh_wt_pct": 0.2 },
+    { "id": "artemis-mons-mouton", "weh_wt_pct": 0.22 },
+    { "id": "artemis-nobile-rim-2", "weh_wt_pct": 0.2 },
+    { "id": "artemis-slater-plain", "weh_wt_pct": 0.3 },
+    { "id": "artemis-peak-near-cabeus-b", "weh_wt_pct": 0.3 }
+  ]
+}

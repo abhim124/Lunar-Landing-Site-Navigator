@@ -21,6 +21,14 @@ export const maxDuration = 60;
 
 const MAX_TOOL_ROUNDS = 6;
 
+// Restated after the mission data so the display mode reliably shapes the wording.
+const AUDIENCE_REMINDER: Record<string, string> = {
+  learn:
+    '\n\nAUDIENCE NOW: LEARN MODE (a beginner, about 12 years old). "say" must use everyday words and short sentences, no percentages with decimals, no jargon (never say ephemeris, azimuth, DTE, PSR, wt%, kWh without explaining it). Include exactly one everyday analogy (e.g. "like a phone charging in a sunny window"). "details" stays simple too: at most 3 short sentences, round numbers.',
+  expert:
+    '\n\nAUDIENCE NOW: EXPERT MODE (mission planner). Be technical and precise: numbers with units, the data source or model behind each number and its assumptions, standard terms (DTE, PSR, WEH, terrain horizon, incidence angle).',
+};
+
 const MODEL = 'claude-haiku-5-5';
 const OFFLINE: AssistantReply = { say: 'CAPCOM is offline. Check the status cards.', details: '', action: '', highlight: 'none', error: true };
 
@@ -92,7 +100,8 @@ export async function POST(req: Request) {
     const ctx = sanitizeContext(body.context);
     const actions: AgentAction[] = [];
     const client = new Anthropic({ apiKey });
-    const system = `${ASSISTANT_SYSTEM_PROMPT}\n${JSON.stringify(body.missionState ?? {}, null, 2)}`;
+    const mode = (body.missionState as { displayMode?: string } | undefined)?.displayMode;
+    const system = `${ASSISTANT_SYSTEM_PROMPT}\n${JSON.stringify(body.missionState ?? {}, null, 2)}${AUDIENCE_REMINDER[mode ?? ''] ?? ''}`;
     const messages: Anthropic.MessageParam[] = [...sanitizeHistory(body.history), { role: 'user', content: question }];
 
     // Manual tool loop: data tools run here against the backend; UI tools are queued as actions for the browser.

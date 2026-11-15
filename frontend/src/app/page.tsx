@@ -3,8 +3,10 @@
 import dynamic from 'next/dynamic';
 import { useEffect } from 'react';
 import { AssistantPanel } from '@/components/AssistantPanel';
+import { ExpertAnalysis } from '@/components/expert/ExpertAnalysis';
 import { DataSourceBadge } from '@/components/ui/DataSourceBadge';
 import { NearbyWindowsPanel } from '@/components/ui/NearbyWindowsPanel';
+import { LearnBlock } from '@/components/ui/LearnBlock';
 import { ANALYTICS_PANEL, CalendarTab, PanoramaTab, ValidationTab, tabButtonClass } from '@/components/ui/SkyPanoramaDrawer';
 import { TopCommandPill } from '@/components/ui/TopCommandPill';
 import { VerdictCard } from '@/components/ui/VerdictCard';
@@ -65,6 +67,9 @@ export default function MissionPage() {
 
       {hasSite && (
         <>
+          {/* Expert only — engineering analysis */}
+          <ExpertAnalysis />
+
           {/* Zone 4 — launch calendar */}
           <LaunchCalendarZone />
 
@@ -93,6 +98,7 @@ function LaunchCalendarZone() {
       <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_340px]">
         <section data-highlight-target="calendar" className={ANALYTICS_PANEL} aria-label="365-day launch slip calendar">
           <h3 className="px-3 pt-3 text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500">365-Day Launch Slip</h3>
+          <LearnBlock id="calendar" className="mx-3" />
           <CalendarTab />
         </section>
         <div className={ANALYTICS_PANEL}>
@@ -122,8 +128,10 @@ function FooterZone() {
             NASA Validation
           </button>
         </div>
+        <LearnBlock id="dataSource" className="mx-3 mb-2 mt-0" />
         {validationOpen && (
           <div className="border-t border-slate-800/70">
+            <LearnBlock id="validation" className="mx-3" />
             <ValidationTab />
           </div>
         )}

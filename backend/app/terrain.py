@@ -285,3 +285,62 @@ def terrain_at(lat: float, lon: float) -> TerrainPoint:
 def heightmap_paths() -> tuple[Path, Path]:
     p = DATA_DIR / "processed"
     return p / "polar_heightmap.png", p / "polar_heightmap.json"
+
+
+# ─────────────────────────────── slope / roughness statistics (Expert card) ───────────────────────────────
+
+
+def _plane_rms(z: np.ndarray, xx: np.ndarray, yy: np.ndarray, mask: np.ndarray) -> tuple[float, float]:
+    """Least-squares plane z = a·x + b·y + c over `mask` → (plane slope °, RMS residual m)."""
+    ok = mask & np.isfinite(z)
+    A = np.column_stack([xx[ok], yy[ok], np.ones(ok.sum())])
+    coef, *_ = np.linalg.lstsq(A, z[ok], rcond=None)
+    return float(np.degrees(np.arctan(np.hypot(coef[0], coef[1])))), float(np.sqrt(np.mean((z[ok] - A @ coef) ** 2)))
+
+
+def slope_stats(lat: float, lon: float, radius_m: float) -> dict:
+    """
+    Slope and roughness around a pad from the best LOLA DEM available:
+      • PGDA 5 m/px site product (Site01/04/07) where it covers the point;
+      • otherwise the 240 m/px polar LDEM, with the radius widened to ≥ 1.5 px so it spans neighbours.
+    Per-pixel slope = arctan |∇z| (central differences); roughness = RMS height deviation from the
+    best-fit plane over the disc.
+    """
+    x, y = (float(v) for v in stereo_forward(lat, lon))
+    hit = site_5m_for(x, y)
+    if hit is not None:
+        from rasterio.windows import Window
+
+        site, meta = hit
+        with _ds_lock:
+            ds = _open_5m(meta["path"])
+            res = abs(ds.transform.a)
+            half = int(np.ceil(radius_m / res)) + 1
+            row, col = ds.index(x, y)
+            z = ds.read(1, window=Window(col - half, row - half, 2 * half + 1, 2 * half + 1)).astype(np.float64)
+        eff_r = radius_m
+        src = tag(f"PGDA LOLA 5m/px GeoTIFF {site}", f"5 m/px · r = {radius_m:g} m", derived=True)
+    else:
+        store = GridStore.get()
+        res = store.ldem.pixel_m
+        eff_r = max(radius_m, 1.5 * res)
+        half = int(np.ceil(eff_r / res)) + 1
+        z, *_ = store.ldem.window(x, y, half)
+        z = z.astype(np.float64)
+        src = tag(store.ldem.source["source_name"], f"{res:g} m/px · r widened to {eff_r:g} m", derived=True,
+                  synthetic=bool(store.ldem.source.get("is_synthetic_fallback")))
+    n = z.shape[0]
+    c = n // 2
+    yy, xx = (np.mgrid[0:n, 0:z.shape[1]] - c) * res
+    yy = -yy  # rows grow southward in the raster
+    gy, gx = np.gradient(z, res)
+    slope = np.degrees(np.arctan(np.hypot(gx, gy)))
+    disc = (np.hypot(xx, yy) <= eff_r) & np.isfinite(slope)
+    at_point = float(slope[c, c]) if np.isfinite(slope[c, c]) else float(np.nanmean(slope[disc]))
+    _, rms = _plane_rms(z, xx, yy, disc)
+    return {
+        "lat": lat, "lon": lon, "requested_radius_m": radius_m, "effective_radius_m": eff_r, "pixel_m": res,
+        "n_pixels": int(disc.sum()), "slope_at_point_deg": at_point,
+        "mean_slope_deg": float(np.nanmean(slope[disc])), "max_slope_deg": float(np.nanmax(slope[disc])),
+        "roughness_rms_m": rms, "source": src,
+    }

@@ -1,6 +1,9 @@
 import type { MissionStore } from '@/store/useMissionStore';
 import type { MissionPhase } from '@/types/assistant';
 import { angleDiffDeg } from './geo';
+import { iceLikelihood, wehAt } from './iceHydrogen';
+import { powerSeries, powerStats, sampleStepH } from './power';
+import { isInPsr, kToC, temperatureSeries } from './temperature';
 
 const r1 = (n: number | null | undefined) => (n == null || !Number.isFinite(n) ? undefined : Math.round(n * 10) / 10);
 
@@ -73,8 +76,17 @@ export function buildMissionState(s: MissionStore, missionPhase: MissionPhase) {
 
   const alt = s.alternative;
   const il = ev?.illumination;
+  const expert = s.displayMode === 'expert';
+
+  // Temperature (model estimate) at the timeline position + over the mission; Diviner measured range alongside.
+  const temp = ev ? temperatureSeries(samples, isInPsr(ev.isru.nearest_ice_psr_km.value), s.scrubHour) : null;
+  const div = ev?.thermal.surface_temperature_k.value;
+  const pw = expert && ev ? powerStats(powerSeries(samples, s.expert), sampleStepH(samples), s.expert.loadW) : null;
+  const slope = expert && site && s.slopeStats && Math.abs(s.slopeStats.lat - site.lat) < 1e-6 ? s.slopeStats : null;
+  const weh = expert && site ? wehAt(site.lat, site.lon) : null;
 
   return compact({
+    displayMode: s.displayMode,
     missionPhase,
     site: site?.name ?? 'No site selected',
     lat: site ? Number(site.lat.toFixed(4)) : undefined,
@@ -103,7 +115,48 @@ export function buildMissionState(s: MissionStore, missionPhase: MissionPhase) {
       timeUntilEarthset: il.time_to_earthset_hours.value == null ? 'Earth stays in view for the whole mission' : humanHours(il.time_to_earthset_hours.value),
       status: il.earth_contact_pct.status,
     },
-    terrain: ev && { slopeDeg: r1(ev.terrain.slope_deg.value), surfaceTempK: ev.thermal.surface_temperature_k.value },
+    terrain: ev && { slopeDeg: r1(ev.terrain.slope_deg.value), roughnessM: r1(ev.terrain.roughness_m.value) },
+    temperature: temp && {
+      estimateNote: 'model estimate (radiative equilibrium using Sun height above the terrain horizon; shadow 90 K, PSR 40 K)',
+      nowC: Math.round(kToC(temp.nowK)),
+      minC: Math.round(kToC(temp.minK)),
+      maxC: Math.round(kToC(temp.maxK)),
+      nowK: Math.round(temp.nowK),
+      divinerMeasuredRangeK: div && div.min_k != null && div.max_k != null ? `${Math.round(div.min_k)}–${Math.round(div.max_k)} K (LRO Diviner, measured climatology)` : undefined,
+    },
+    expertAnalysis: expert
+      ? {
+          panelAssumptions: {
+            areaM2: s.expert.panelAreaM2,
+            efficiency: s.expert.panelEff,
+            orientation: s.expert.orientation === 'tracking' ? 'vertical, Sun-tracking' : `vertical, fixed facing ${s.expert.facingAzDeg}°`,
+            loadW: s.expert.loadW,
+          },
+          powerEstimate: pw && {
+            averageW: Math.round(pw.avgW),
+            peakW: Math.round(pw.peakW),
+            energyKWh: r1(pw.energyKWh),
+            longestZeroPowerHours: r1(pw.longestZeroH),
+            batteryNeededKWh: r1(pw.batteryWh / 1000),
+          },
+          slope: slope && {
+            atPadDeg: r1(slope.slope_at_point_deg),
+            meanDeg: r1(slope.mean_slope_deg),
+            maxDeg: r1(slope.max_slope_deg),
+            roughnessRmsM: r1(slope.roughness_rms_m),
+            radiusM: slope.effective_radius_m,
+            demResolutionM: slope.pixel_m,
+            maxSafeSlopeDeg: s.expert.maxSafeSlopeDeg,
+            pass: slope.slope_at_point_deg <= s.expert.maxSafeSlopeDeg && slope.mean_slope_deg <= s.expert.maxSafeSlopeDeg,
+          },
+          iceHydrogen: weh != null && {
+            hydrogenWehWtPct: Math.round(weh * 100) / 100,
+            hydrogenNote: 'ILLUSTRATIVE value, not a measurement',
+            nearestPsrKm: r1(ev?.isru.nearest_ice_psr_km.value ?? null),
+            iceLikelihood: iceLikelihood(weh, ev?.isru.nearest_ice_psr_km.value ?? null),
+          },
+        }
+      : undefined,
     spaceWeather: ev && {
       status: ev.space_weather.status,
       evaStatus: ev.space_weather.eva_status,

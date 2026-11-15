@@ -11,30 +11,11 @@ import type { MetricWithSource, SiteEvaluationResponse, SpaceWeatherStatus } fro
 import { DataSourceBadge, StatusPill } from './DataSourceBadge';
 import { InfoButton, InfoPanel, useInfo } from './InfoButton';
 import { NearestAlternativeCard } from './NearestAlternativeCard';
+import { LearnBlock } from './LearnBlock';
+import { TemperatureTile } from './TemperatureTile';
+import { benchmarkLine, verdictWhy, type LearnId } from '@/lib/learnContent';
 
-/** Plain-English Learn Mode notes tying each metric to real lunar engineering. */
-const LEARN = {
-  sunlit:
-    'Solar-powered landers need near-continuous sunlight. At the pole the Sun skims the horizon (never more than ~1.6° up), so a ridge a few hundred metres higher can mean weeks more power — which is why Artemis candidates sit on rims and massifs.',
-  darkness:
-    'Batteries and heaters must bridge the longest night. IM-2 Athena came to rest on its side near Mons Mouton under a low Sun, its panels could not generate enough power, and surface operations ended early.',
-  sunset: 'How long until the solar disk drops fully below the local terrain skyline — your operations clock for the first power-down.',
-  earthset: 'How long until Earth drops below the terrain or your antenna cutoff. Crater rims can hide Earth for days near the pole.',
-  earth:
-    'Direct-to-Earth radio needs Earth above both the terrain skyline and the antenna mask. Libration makes Earth wobble only ±~7° in the polar sky, so a nearby rim can block it for most of a month.',
-  temperature:
-    'Diviner sees sunlit polar ridges swing between roughly 150 and 250 K, while permanently shadowed craters stay below 50 K — some of the coldest surfaces measured in the Solar System.',
-  slope:
-    'Landers tip over on slopes. Typical requirements cap the pad at ~8–10°; above 15° is a hard fail here. IM-1 and IM-2 both came to rest on their sides after touchdown.',
-  roughness:
-    'RMS height variation inside the local window. High roughness at metre scale means boulders, crater walls or blocky ejecta under the landing legs.',
-  rock: 'Diviner infers the fraction of the surface covered by ≥1 m boulders from how fast rocks stay warm after sunset. Even a few percent is a footpad hazard.',
-  ice: 'Distance to the nearest permanently shadowed pixel in the PGDA LPSR map. PSRs are cold traps where water ice can survive (LEND and Mini-RF see hints of it), so a short traverse makes ISRU cheaper — but a PSR is not proof of ice.',
-  weather:
-    'Solar energetic particles can arrive within tens of minutes of a flare. During elevated radiation, EVAs are postponed and crews shelter inside the lander.',
-} as const;
-
-type LearnKey = keyof typeof LEARN;
+type LearnKey = LearnId;
 
 /** Mission verdict as a full-width 4-column strip: verdict | power | comms | nearest alternative. */
 export function VerdictCard() {
@@ -70,7 +51,7 @@ export function VerdictCard() {
 
   return (
     <section className={`${PANEL} rounded-2xl shadow-2xl shadow-black/60`} aria-label="Mission verdict">
-      <div className="grid grid-cols-2 items-start gap-3 p-3 xl:grid-cols-[1.6fr_1fr_1fr_1.6fr]">
+      <div className="grid grid-cols-2 items-start gap-3 p-3 xl:grid-cols-[1.5fr_1fr_1fr_1fr_1.5fr]">
         {/* Column 1 — verdict badge + reasons */}
         <header className="min-w-0">
           <div className="flex items-start justify-between gap-3">
@@ -134,6 +115,9 @@ export function VerdictCard() {
               )}
             </div>
           )}
+          {ev && learnMode && (
+            <LearnBlock id="verdict" extra={<span className="font-medium">{verdictWhy(ev)}</span>} />
+          )}
         </header>
 
         {status === 'error' && (
@@ -153,7 +137,14 @@ export function VerdictCard() {
         {ev && (
           <>
             {/* Column 2 — power */}
-            <MetricTile target="power" label="Sunlit" metric={ev.illumination.sunlit_pct} display={fmtNum(ev.illumination.sunlit_pct.value, 1)} learn={learnMode ? 'sunlit' : null} />
+            <MetricTile
+              target="power"
+              label="Sunlit"
+              metric={ev.illumination.sunlit_pct}
+              display={fmtNum(ev.illumination.sunlit_pct.value, 1)}
+              learn={learnMode ? 'sunlit' : null}
+              learnExtra={learnMode ? benchmarkLine(ev) : null}
+            />
 
             {/* Column 3 — comms */}
             <MetricTile
@@ -165,7 +156,10 @@ export function VerdictCard() {
               learn={learnMode ? 'earth' : null}
             />
 
-            {/* Column 4 — nearest viable alternative */}
+            {/* Column 4 — surface temperature (all modes) */}
+            <TemperatureTile ev={ev} />
+
+            {/* Column 5 — nearest viable alternative */}
             <div className="min-w-0">
               {(ev.overall_status !== 'GO' || altStatus !== 'idle') && <NearestAlternativeCard />}
               {ev.overall_status === 'GO' && altStatus === 'idle' && (
@@ -287,6 +281,7 @@ function MetricTile({
   metric,
   display,
   learn,
+  learnExtra,
   hint,
   wide = false,
   hideUnit = false,
@@ -297,6 +292,7 @@ function MetricTile({
   metric: MetricWithSource<number | null>;
   display: string;
   learn?: LearnKey | null;
+  learnExtra?: ReactNode;
   hint?: string;
   wide?: boolean;
   hideUnit?: boolean;
@@ -336,7 +332,7 @@ function MetricTile({
           <p className="text-[10px] text-slate-500">Status: {metric.status}</p>
         </InfoPanel>
       )}
-      {learn && <LearnNote>{LEARN[learn]}</LearnNote>}
+      {learn && <LearnBlock id={learn} extra={learnExtra} />}
     </div>
   );
 }
@@ -390,7 +386,7 @@ function ThermalTile({ ev, learn }: { ev: SiteEvaluationResponse; learn: boolean
         <span>{hi} K</span>
       </div>
       <DataSourceBadge source={m.source} className="mt-1.5" />
-      {learn && <LearnNote>{LEARN.temperature}</LearnNote>}
+      {learn && <LearnBlock id="temperature" />}
     </div>
   );
 }
@@ -420,11 +416,7 @@ function SpaceWeatherBadge({ sw, learn }: { sw: SpaceWeatherStatus; learn: boole
         {sw.served_from_cache && sw.cached_at_utc ? ` · cached ${fmtUtc(sw.cached_at_utc)}` : ''}
       </p>
       <DataSourceBadge source={sw.source} className="mt-1.5" />
-      {learn && <LearnNote>{LEARN.weather}</LearnNote>}
+      {learn && <LearnBlock id="weather" />}
     </section>
   );
-}
-
-function LearnNote({ children }: { children: ReactNode }) {
-  return <p className="mt-2 border-l-2 border-sky-500/50 pl-2 text-[11px] leading-snug text-slate-300/90">{children}</p>;
 }

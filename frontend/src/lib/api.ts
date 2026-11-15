@@ -5,6 +5,7 @@ import type {
   NearestAlternativeResponse,
   SiteEvaluationRequest,
   SiteEvaluationResponse,
+  SlopeStatsResponse,
   ValidationBenchmarkResponse,
   ValidationRequest,
 } from '@/types/mission';
@@ -90,6 +91,9 @@ export const api = {
 
   nearbyWindows: (params: NearbyWindowsRequest, signal?: AbortSignal) =>
     requestJson<NearbyWindowsResponse>(`/api/nearby-windows?${qs(params)}`, { signal }),
+
+  slopeStats: (params: { lat: number; lon: number; radius_m: number }, signal?: AbortSignal) =>
+    requestJson<SlopeStatsResponse>(`/api/terrain/slope-stats?${qs(params)}`, { signal }),
 
   validation: (params: ValidationRequest, signal?: AbortSignal) =>
     requestJson<ValidationBenchmarkResponse>(`/api/validation?${qs(params)}`, { signal }),

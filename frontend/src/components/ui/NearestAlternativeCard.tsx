@@ -7,6 +7,7 @@ import { DATE_WINDOW_DAYS, SEARCH_RADIUS_KM, useMissionStore } from '@/store/use
 import type { AlternativeDateOption, AlternativeSiteOption, NearestAlternativeResponse } from '@/types/mission';
 import { DataSourceBadge, StatusPill } from './DataSourceBadge';
 import { InfoButton, InfoPanel, useInfo } from './InfoButton';
+import { LearnBlock } from './LearnBlock';
 
 const COMPASS = ['north', 'north-east', 'east', 'south-east', 'south', 'south-west', 'west', 'north-west'];
 const compass = (deg: number) => COMPASS[Math.round((((deg % 360) + 360) % 360) / 45) % 8];
@@ -111,6 +112,7 @@ export function NearestAlternativeCard() {
             </div>
           )}
 
+          <LearnBlock id="alternatives" />
           {(info.open || showMore) && <SearchDetails id={info.id} alt={alternative} onRerun={() => void fetchNearestAlternative()} />}
         </div>
       )}

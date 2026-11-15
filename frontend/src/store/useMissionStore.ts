@@ -2,10 +2,12 @@
 
 import { create } from 'zustand';
 import { api, errorMessage, isAbortError } from '@/lib/api';
+import { DEFAULT_EXPERT, type DisplayMode, type ExpertSettings } from '@/lib/displayMode';
 import { currentHourUTC, normalizeEpoch } from '@/lib/format';
 import { clamp, greatCircleDistanceKm, normalizeLon } from '@/lib/geo';
 import { CURATED_BY_ID } from '@/lib/siteRegistry';
 import type {
+  SlopeStatsResponse,
   DrawerTab,
   LaunchCalendarResponse,
   LayerId,
@@ -38,9 +40,14 @@ export interface MissionState {
   missionDurationDays: number;
   minEarthElevationDeg: number;
   activeLayer: LayerId;
+  /** Standard | Learn | Expert. `learnMode` and `showMore` are kept in sync with it for older readers. */
+  displayMode: DisplayMode;
   learnMode: boolean;
-  /** UI-only "More" mode: reveals secondary controls and details (not URL-synced). */
+  /** True in Expert mode: reveals secondary controls and details (what the old "More" toggle showed). */
   showMore: boolean;
+  expert: ExpertSettings;
+  /** Last slope / roughness statistics fetched for the Expert card (also sent to CAPCOM). */
+  slopeStats: SlopeStatsResponse | null;
   activeDrawerTab: DrawerTab;
   isDrawerOpen: boolean;
   /** Hours since epochUTC on the timeline scrubber (local-only, no network). */
@@ -74,7 +81,8 @@ export interface UrlHydration {
   days?: number;
   ant?: number;
   layer?: LayerId;
-  learn?: boolean;
+  mode?: DisplayMode;
+  expert?: Partial<ExpertSettings>;
   siteId?: string;
 }
 
@@ -87,8 +95,11 @@ export interface MissionActions {
   setMissionDurationDays: (days: number) => void;
   setMinEarthElevationDeg: (deg: number) => void;
   setActiveLayer: (layer: LayerId) => void;
+  setDisplayMode: (mode: DisplayMode) => void;
   setLearnMode: (on: boolean) => void;
   setShowMore: (on: boolean) => void;
+  setExpert: (patch: Partial<ExpertSettings>) => void;
+  setSlopeStats: (stats: SlopeStatsResponse | null) => void;
   setActiveDrawerTab: (tab: DrawerTab) => void;
   setDrawerOpen: (open: boolean) => void;
   setScrubHour: (h: number) => void;
@@ -139,8 +150,11 @@ export const useMissionStore = create<MissionStore>()((set, get) => ({
   missionDurationDays: 7,
   minEarthElevationDeg: 5,
   activeLayer: 'BASE_CGI',
+  displayMode: 'standard',
   learnMode: false,
   showMore: false,
+  expert: DEFAULT_EXPERT,
+  slopeStats: null,
   activeDrawerTab: 'PANORAMA',
   isDrawerOpen: true,
   scrubHour: 0,
@@ -237,8 +251,11 @@ export const useMissionStore = create<MissionStore>()((set, get) => ({
     scheduleEvaluate(get, 500);
   },
   setActiveLayer: (layer) => set({ activeLayer: layer }),
-  setLearnMode: (on) => set({ learnMode: on }),
-  setShowMore: (on) => set({ showMore: on }),
+  setDisplayMode: (mode) => set({ displayMode: mode, learnMode: mode === 'learn', showMore: mode === 'expert' }),
+  setLearnMode: (on) => get().setDisplayMode(on ? 'learn' : 'standard'),
+  setShowMore: (on) => get().setDisplayMode(on ? 'expert' : 'standard'),
+  setExpert: (patch) => set((s) => ({ expert: { ...s.expert, ...patch } })),
+  setSlopeStats: (stats) => set({ slopeStats: stats }),
   setActiveDrawerTab: (tab) => {
     set({ activeDrawerTab: tab, isDrawerOpen: true });
     if (tab === 'CALENDAR') void get().fetchLaunchCalendar();
@@ -254,7 +271,8 @@ export const useMissionStore = create<MissionStore>()((set, get) => ({
       missionDurationDays: p.days !== undefined ? clamp(Math.round(p.days), 1, 30) : s.missionDurationDays,
       minEarthElevationDeg: p.ant !== undefined ? clamp(p.ant, 0, 20) : s.minEarthElevationDeg,
       activeLayer: p.layer ?? s.activeLayer,
-      learnMode: p.learn ?? s.learnMode,
+      ...(p.mode ? { displayMode: p.mode, learnMode: p.mode === 'learn', showMore: p.mode === 'expert' } : {}),
+      expert: p.expert ? { ...s.expert, ...p.expert } : s.expert,
     }));
     if (p.lat !== undefined && p.lon !== undefined) {
       const curated = p.siteId ? CURATED_BY_ID[p.siteId] : undefined;

@@ -37,7 +37,7 @@ from .schemas import (
     ValidationBenchmarkResponse,
 )
 from .overlays import OVERLAYS, overlay_meta, overlay_png
-from .terrain import heightmap_paths
+from .terrain import heightmap_paths, slope_stats
 
 import numpy as np
 
@@ -157,6 +157,17 @@ async def best_site_route(
     """Best landing pad anywhere at the south pole (poleward of 80°S) for a given launch epoch."""
     _parse_epoch(epoch_utc)
     return await to_thread.run_sync(best_site, epoch_utc, mission_duration_days, min_earth_elevation_deg, top)
+
+
+@app.get("/api/terrain/slope-stats")
+async def slope_stats_route(
+    lat: float = Query(ge=-90, le=90),
+    lon: float = Query(ge=-360, le=360),
+    radius_m: float = Query(100, ge=10, le=2000),
+) -> dict:
+    """Slope at the pad, mean / max slope and RMS roughness within a radius, from the best LOLA DEM."""
+    lon = (lon + 180) % 360 - 180
+    return await to_thread.run_sync(slope_stats, lat, lon, radius_m)
 
 
 @app.get("/api/space-weather", response_model=SpaceWeatherStatus)

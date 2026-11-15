@@ -1,0 +1,26 @@
+[
+  {
+    "id": "toronto",
+    "name": "Toronto, Canada",
+    "lat": 43.65,
+    "lon": -79.38,
+    "monthlyMeanC": [-3.7, -2.6, 1.4, 7.9, 14.1, 19.4, 22.3, 21.5, 17.2, 10.5, 4.6, -0.9],
+    "source": "Typical monthly means, Environment Canada 1991–2020 climate normals (Toronto City), rounded"
+  },
+  {
+    "id": "phoenix",
+    "name": "Phoenix, Arizona (sunny desert)",
+    "lat": 33.45,
+    "lon": -112.07,
+    "monthlyMeanC": [13.6, 15.6, 19.1, 23.2, 28.6, 33.6, 35.3, 34.8, 31.8, 25.4, 18.3, 13.1],
+    "source": "Typical monthly means, NOAA NCEI 1991–2020 climate normals (Phoenix Sky Harbor), rounded"
+  },
+  {
+    "id": "southpole",
+    "name": "Amundsen–Scott South Pole Station",
+    "lat": -90.0,
+    "lon": 0.0,
+    "monthlyMeanC": [-27.5, -38.6, -51.0, -54.9, -55.4, -55.9, -57.4, -57.4, -56.5, -48.6, -36.4, -27.0],
+    "source": "Typical monthly means, NOAA/ESRL South Pole station records, rounded"
+  }
+]

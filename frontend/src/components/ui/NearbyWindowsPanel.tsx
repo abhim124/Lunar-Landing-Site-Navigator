@@ -8,6 +8,7 @@ import { fmtNum, STATUS_STYLES } from '@/lib/format';
 import { useMissionStore } from '@/store/useMissionStore';
 import type { NearbyWindowsResponse, NearbyWindowsSite, StatusDay } from '@/types/nearbyWindows';
 import { InfoButton, InfoPanel, useInfo } from './InfoButton';
+import { LearnBlock } from './LearnBlock';
 
 const RADIUS_KM = 10;
 
@@ -166,6 +167,7 @@ export function NearbyWindowsPanel() {
         {status === 'loading' && <span className="animate-pulse text-[10px] text-slate-500">scoring…</span>}
         <InfoButton open={info.open} onToggle={info.toggle} controls={info.id} label="comparison method" />
       </div>
+      <LearnBlock id="compare" className="mt-0" />
       {info.open && data && (
         <InfoPanel id={info.id} className="mt-0">
           <p className="text-slate-400">

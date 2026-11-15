@@ -301,3 +301,19 @@ export interface NearestAlternativeResponse {
   stats: AlternativeSearchStats;
   computed_in_ms: number;
 }
+
+/** GET /api/terrain/slope-stats — LOLA-derived slope and roughness around a pad. */
+export interface SlopeStatsResponse {
+  lat: number;
+  lon: number;
+  requested_radius_m: number;
+  effective_radius_m: number;
+  pixel_m: number;
+  n_pixels: number;
+  slope_at_point_deg: number;
+  mean_slope_deg: number;
+  max_slope_deg: number;
+  /** RMS height deviation from the best-fit plane over the radius, m. */
+  roughness_rms_m: number;
+  source: DataSourceTag;
+}
