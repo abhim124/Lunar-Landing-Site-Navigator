@@ -48,7 +48,7 @@ export default function MissionPage() {
         </div>
       )}
 
-      {/* Zone 3 — view (globe + timeline) | CAPCOM */}
+      {/* Zone 3 — view (globe + timeline) | Hatfield */}
       <div className={`grid gap-3 px-3 ${assistantOpen ? 'xl:grid-cols-[2fr_1fr]' : ''}`}>
         <div className="flex min-w-0 flex-col gap-3">
           <div className={`relative overflow-hidden rounded-2xl ${hasSite ? 'h-[280px]' : 'h-[calc(100vh-88px)]'}`}>

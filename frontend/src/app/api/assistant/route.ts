@@ -30,7 +30,7 @@ const AUDIENCE_REMINDER: Record<string, string> = {
 };
 
 const MODEL = 'claude-haiku-5-5';
-const OFFLINE: AssistantReply = { say: 'CAPCOM is offline. Check the status cards.', details: '', action: '', highlight: 'none', error: true };
+const OFFLINE: AssistantReply = { say: 'Hatfield is offline. Check the status cards.', details: '', action: '', highlight: 'none', error: true };
 
 /** Last 6 turns, starting with a user turn, with strictly alternating roles. */
 function sanitizeHistory(raw: unknown): Anthropic.MessageParam[] {

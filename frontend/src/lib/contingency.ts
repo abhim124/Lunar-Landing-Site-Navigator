@@ -1,6 +1,6 @@
 import type { MissionPhase } from '@/types/assistant';
 
-/** Anomaly classes CAPCOM can recognise in a crew report. The model picks one; the numbers below are ours. */
+/** Anomaly classes Hatfield can recognise in a crew report. The model picks one; the numbers below are ours. */
 export const ANOMALY_TYPES = [
   'fuel_leak',
   'engine_fault',

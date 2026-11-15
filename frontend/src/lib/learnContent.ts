@@ -48,11 +48,11 @@ export const LEARN_CONTENT = {
     mission: 'If a nearby spot has many more GO days, it gives the mission more chances to launch on time.',
   },
   capcom: {
-    what: 'CAPCOM is the person at mission control who talks to the astronauts. Ask it anything by typing or holding the mic, or tell it about a problem.',
+    what: 'Hatfield is the app’s mission-control assistant. In real missions the person who talks to the astronauts is called CAPCOM, and Hatfield plays that role. Ask it anything by typing or holding the mic, or tell it about a problem.',
     mission: 'It can find the best spot for a date, take you there, explain the numbers, and re-check the site if something breaks.',
   },
   contingency: {
-    what: 'When you report a problem, CAPCOM checks whether this spot is still safe for that problem, using real terrain and Sun data.',
+    what: 'When you report a problem, Hatfield checks whether this spot is still safe for that problem, using real terrain and Sun data.',
     mission: 'For example, a fuel leak means the lander can’t fly far or hover long, so it needs a flat spot close by.',
   },
   globe: {
@@ -114,7 +114,7 @@ export function verdictWhy(ev: SiteEvaluationResponse): string {
   const word = ev.overall_status === 'NO-GO' ? 'NO-GO' : 'MARGINAL';
   return problems.length
     ? `${word} because ${problems.slice(0, 2).join(', and ')}.`
-    : `${word} because one of the safety checks is borderline. Ask CAPCOM which one.`;
+    : `${word} because one of the safety checks is borderline. Ask Hatfield which one.`;
 }
 
 /** "This site gets 3.2× the solar energy of Toronto over these 7 days." — default panel, same dates. */
