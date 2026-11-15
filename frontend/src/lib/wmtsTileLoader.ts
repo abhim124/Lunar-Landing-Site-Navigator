@@ -213,11 +213,21 @@ export function loadPsrMaskTexture(anisotropy = 4): Promise<{ texture: THREE.Tex
   if (!psrMaskPromise) {
     psrMaskPromise = (async () => {
       const urls = overlayUrls('psr_mask');
-      const res = await fetchWithTimeout(urls.meta, 10_000);
-      if (!res.ok) throw new Error(`PSR overlay metadata HTTP ${res.status}`);
-      const meta = (await res.json()) as { bounds_m: Bounds };
-      const image = await loadImage(urls.png, undefined, 60_000);
-      return { texture: finishTexture(image, anisotropy), boundsM: meta.bounds_m };
+      // A tunnelled backend can drop a request now and then: retry with a short back-off.
+      let lastErr: unknown;
+      for (let attempt = 0; attempt < 4; attempt++) {
+        try {
+          const res = await fetchWithTimeout(urls.meta, 10_000);
+          if (!res.ok) throw new Error(`PSR overlay metadata HTTP ${res.status}`);
+          const meta = (await res.json()) as { bounds_m: Bounds };
+          const image = await loadImage(urls.png, undefined, 60_000);
+          return { texture: finishTexture(image, anisotropy), boundsM: meta.bounds_m };
+        } catch (err) {
+          lastErr = err;
+          await new Promise((r) => setTimeout(r, 1500 * (attempt + 1)));
+        }
+      }
+      throw lastErr;
     })().catch((err) => {
       psrMaskPromise = null; // allow a retry on the next mount
       throw err;
