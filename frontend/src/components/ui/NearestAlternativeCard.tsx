@@ -49,7 +49,7 @@ export function NearestAlternativeCard() {
   const d = alternative?.best_launch_date ?? null;
 
   return (
-    <section className="rounded-xl border border-sky-500/30 bg-gradient-to-b from-sky-500/10 to-slate-900/40 p-3">
+    <section data-highlight-target="alternatives" className="rounded-xl border border-sky-500/30 bg-gradient-to-b from-sky-500/10 to-slate-900/40 p-3">
       <header className="flex items-center justify-between gap-2">
         <h3 className="text-xs font-semibold uppercase tracking-wider text-sky-200">Where or when instead?</h3>
         {status === 'success' && <InfoButton open={info.open || showMore} onToggle={info.toggle} controls={info.id} label="search details" />}

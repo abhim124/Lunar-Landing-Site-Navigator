@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState, type FormEvent, type KeyboardEvent as ReactKeyboardEvent } from 'react';
+import { agentContext, applyAgentActions, describeActions, restore, snapshot, type AgentSnapshot } from '@/lib/agentActions';
 import { api, errorMessage } from '@/lib/api';
 import { buildMissionState } from '@/lib/buildMissionState';
 import {
@@ -111,7 +112,7 @@ interface ContingencyState {
 
 type ChatEntry =
   | { id: string; role: 'user'; text: string }
-  | { id: string; role: 'assistant'; reply: AssistantReply }
+  | { id: string; role: 'assistant'; reply: AssistantReply; before?: AgentSnapshot; undone?: boolean }
   | { id: string; role: 'contingency'; c: ContingencyState };
 
 /** Text the model sees in history for a finished re-assessment. */
@@ -316,7 +317,8 @@ export function AssistantPanel() {
         }
         if (m.reply.error) return [];
         const { say, details, action, highlight } = m.reply;
-        return [{ role: 'assistant', content: JSON.stringify({ say, details, action, highlight }) }];
+        const did = m.reply.actions?.length ? ` [App actions taken: ${describeActions(m.reply.actions).join('; ')}${m.undone ? ' — later UNDONE by the crew' : ''}]` : '';
+        return [{ role: 'assistant', content: JSON.stringify({ say, details, action, highlight }) + did }];
       });
       setMessages((prev) => [...prev, { id: nextId(), role: 'user', text: question }]);
       setPending(true);
@@ -328,15 +330,18 @@ export function AssistantPanel() {
         const res = await fetch('/api/assistant', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ question, missionState: buildMissionState(mission, phase), history }),
+          body: JSON.stringify({ question, missionState: buildMissionState(mission, phase), history, context: agentContext() }),
         });
         reply = res.ok ? ((await res.json()) as AssistantReply) : OFFLINE;
       } catch {
         reply = OFFLINE;
       }
-      setMessages((prev) => [...prev, { id: nextId(), role: 'assistant', reply }]);
+      const acted = !reply.error && !!reply.actions?.length;
+      const before = acted ? snapshot() : undefined;
+      setMessages((prev) => [...prev, { id: nextId(), role: 'assistant', reply, before }]);
       speak(reply.say);
-      if (reply.highlight && reply.highlight !== 'none') flash(reply.highlight);
+      if (acted) await applyAgentActions(reply.actions!);
+      else if (reply.highlight && reply.highlight !== 'none') flash(reply.highlight);
       if (reply.anomaly && !reply.error) await runContingency(reply.anomaly);
       setPending(false);
     },
@@ -526,7 +531,19 @@ export function AssistantPanel() {
           ) : m.role === 'contingency' ? (
             <ContingencyCard key={m.id} c={m.c} onUndo={() => undoRelocation(m.id, m.c)} />
           ) : (
-            <AssistantBubble key={m.id} reply={m.reply} />
+            <AssistantBubble
+              key={m.id}
+              reply={m.reply}
+              undone={m.undone}
+              onUndo={
+                m.before
+                  ? () => {
+                      restore(m.before!);
+                      setMessages((prev) => prev.map((x) => (x.id === m.id ? { ...x, undone: true } : x)));
+                    }
+                  : undefined
+              }
+            />
           ),
         )}
         {listening && interim && (
@@ -653,7 +670,8 @@ export function AssistantPanel() {
   );
 }
 
-function AssistantBubble({ reply }: { reply: AssistantReply }) {
+function AssistantBubble({ reply, onUndo, undone }: { reply: AssistantReply; onUndo?: () => void; undone?: boolean }) {
+  const did = reply.actions?.length ? describeActions(reply.actions) : [];
   return (
     <div className="flex justify-start">
       <div
@@ -668,6 +686,23 @@ function AssistantBubble({ reply }: { reply: AssistantReply }) {
             <span className="mr-1 font-mono text-[10px] font-semibold uppercase tracking-wider text-sky-300">Next step</span>
             {reply.action}
           </p>
+        )}
+        {did.length > 0 && (
+          <div className="mt-1.5 flex flex-wrap items-center gap-1">
+            {did.map((d, i) => (
+              <span
+                key={i}
+                className={`rounded-full px-2 py-0.5 text-[10px] ring-1 ${undone ? 'text-slate-500 line-through ring-slate-700' : 'bg-emerald-500/10 text-emerald-200 ring-emerald-400/30'}`}
+              >
+                ✓ {d}
+              </span>
+            ))}
+            {onUndo && !undone && (
+              <button type="button" onClick={onUndo} className="ml-1 text-[10px] text-slate-400 underline hover:text-slate-200">
+                Undo
+              </button>
+            )}
+          </div>
         )}
         {reply.details && (
           <details className="group mt-1.5">

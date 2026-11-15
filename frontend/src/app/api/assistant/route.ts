@@ -1,12 +1,25 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { NextResponse } from 'next/server';
 import { ASSISTANT_SYSTEM_PROMPT } from '@/lib/assistantPrompt';
+import { AGENT_TOOLS, runAgentTool } from '@/lib/agentTools';
 import { ANOMALY_TYPES, type AnomalyType } from '@/lib/contingency';
-import { HIGHLIGHT_TARGETS, type AssistantReply, type AssistantRequest, type AssistantTurn, type HighlightTarget } from '@/types/assistant';
+import {
+  HIGHLIGHT_TARGETS,
+  type AgentAction,
+  type AgentContext,
+  type AssistantReply,
+  type AssistantRequest,
+  type AssistantTurn,
+  type HighlightTarget,
+} from '@/types/assistant';
 
 // Server-only: the API key is read here and never sent to the browser.
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
+// Tool turns call the mission backend (whole-pole search ≈ 1 s); allow headroom on Vercel.
+export const maxDuration = 60;
+
+const MAX_TOOL_ROUNDS = 6;
 
 const MODEL = 'claude-haiku-5-5';
 const OFFLINE: AssistantReply = { say: 'CAPCOM is offline. Check the status cards.', details: '', action: '', highlight: 'none', error: true };
@@ -29,8 +42,24 @@ function sanitizeHistory(raw: unknown): Anthropic.MessageParam[] {
   return out;
 }
 
+function sanitizeContext(raw: unknown): AgentContext {
+  const c = (raw && typeof raw === 'object' ? raw : {}) as Partial<AgentContext>;
+  const site =
+    c.site && typeof c.site.lat === 'number' && typeof c.site.lon === 'number'
+      ? { lat: c.site.lat, lon: c.site.lon, name: typeof c.site.name === 'string' ? c.site.name : 'Selected site' }
+      : null;
+  const epoch = typeof c.epochUTC === 'string' && !Number.isNaN(Date.parse(c.epochUTC)) ? new Date(c.epochUTC).toISOString().slice(0, 19) + 'Z' : new Date().toISOString().slice(0, 13) + ':00:00Z';
+  return {
+    site,
+    epochUTC: epoch,
+    missionDays: typeof c.missionDays === 'number' ? c.missionDays : 7,
+    minEarthElevationDeg: typeof c.minEarthElevationDeg === 'number' ? c.minEarthElevationDeg : 5,
+  };
+}
+
 function parseReply(text: string): AssistantReply {
-  const stripped = text
+  const brace = text.indexOf('{');
+  const stripped = (brace > 0 ? text.slice(brace) : text)
     .trim()
     .replace(/^```(?:json)?\s*/i, '')
     .replace(/\s*```$/, '')
@@ -60,24 +89,48 @@ export async function POST(req: Request) {
     const question = typeof body.question === 'string' ? body.question.trim() : '';
     if (!question) throw new Error('Empty question');
 
+    const ctx = sanitizeContext(body.context);
+    const actions: AgentAction[] = [];
     const client = new Anthropic({ apiKey });
-    const response = await client.messages.create({
-      model: MODEL,
-      max_tokens: 600,
-      // Haiku 5.5 rejects non-default `temperature` (400), so it is omitted; thinking is turned off
-      // so the whole token budget goes to the spoken reply and latency stays low for voice.
-      thinking: { type: 'disabled' },
-      system: `${ASSISTANT_SYSTEM_PROMPT}\n${JSON.stringify(body.missionState ?? {}, null, 2)}`,
-      messages: [...sanitizeHistory(body.history), { role: 'user', content: question }],
-    });
+    const system = `${ASSISTANT_SYSTEM_PROMPT}\n${JSON.stringify(body.missionState ?? {}, null, 2)}`;
+    const messages: Anthropic.MessageParam[] = [...sanitizeHistory(body.history), { role: 'user', content: question }];
 
-    if (response.stop_reason === 'refusal') throw new Error('Model declined the request');
-    const text = response.content
+    // Manual tool loop: data tools run here against the backend; UI tools are queued as actions for the browser.
+    let response: Anthropic.Message | null = null;
+    for (let round = 0; round <= MAX_TOOL_ROUNDS; round++) {
+      response = await client.messages.create({
+        model: MODEL,
+        max_tokens: 1500,
+        // Haiku 5.5 rejects non-default `temperature` (400), so it is omitted; thinking stays off to keep voice latency low.
+        thinking: { type: 'disabled' },
+        system,
+        tools: round < MAX_TOOL_ROUNDS ? AGENT_TOOLS : [],
+        messages,
+      });
+      if (response.stop_reason === 'refusal') throw new Error('Model declined the request');
+      if (response.stop_reason !== 'tool_use') break;
+
+      messages.push({ role: 'assistant', content: response.content });
+      const results: Anthropic.ToolResultBlockParam[] = [];
+      for (const block of response.content) {
+        if (block.type !== 'tool_use') continue;
+        try {
+          const r = await runAgentTool(block.name, block.input, ctx, actions);
+          results.push({ type: 'tool_result', tool_use_id: block.id, content: r.content, is_error: r.isError });
+        } catch (err) {
+          results.push({ type: 'tool_result', tool_use_id: block.id, content: `Tool failed: ${err instanceof Error ? err.message : String(err)}`, is_error: true });
+        }
+      }
+      messages.push({ role: 'user', content: results });
+    }
+
+    const text = (response?.content ?? [])
       .filter((b): b is Anthropic.TextBlock => b.type === 'text')
       .map((b) => b.text)
       .join('');
-    if (!text.trim()) throw new Error(`Empty reply (stop_reason=${response.stop_reason})`);
-    return NextResponse.json(parseReply(text));
+    if (!text.trim() && actions.length === 0) throw new Error(`Empty reply (stop_reason=${response?.stop_reason})`);
+    const reply = text.trim() ? parseReply(text) : { say: 'Done.', details: '', action: '', highlight: 'none' as const };
+    return NextResponse.json({ ...reply, actions });
   } catch (err) {
     console.error('[assistant] request failed:', err);
     return NextResponse.json(OFFLINE, { status: 200 });

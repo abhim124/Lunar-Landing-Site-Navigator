@@ -21,6 +21,7 @@ from fastapi.responses import FileResponse
 from .cache import GridStore, fetch_bytes_cached
 from .ephemeris import SPICE_SOURCE, EphemerisEngine, horizons_azel, iso_z, parse_utc, space_weather
 from .evaluation import evaluate_site, launch_calendar
+from .best_site import best_site
 from .contingency import assess_contingency
 from .nearby_windows import nearby_windows
 from .optimizer import nearest_alternative
@@ -144,6 +145,18 @@ async def nearby_windows_route(
     return await to_thread.run_sync(
         nearby_windows, lat, lon, start_date, planned_date or start_date, n_days, mission_duration_days, min_earth_elevation_deg, radius_km, k
     )
+
+
+@app.get("/api/best-site")
+async def best_site_route(
+    epoch_utc: str,
+    mission_duration_days: float = Query(7, ge=0.5, le=30),
+    min_earth_elevation_deg: float = Query(5, ge=0, le=20),
+    top: int = Query(5, ge=1, le=10),
+) -> dict:
+    """Best landing pad anywhere at the south pole (poleward of 80°S) for a given launch epoch."""
+    _parse_epoch(epoch_utc)
+    return await to_thread.run_sync(best_site, epoch_utc, mission_duration_days, min_earth_elevation_deg, top)
 
 
 @app.get("/api/space-weather", response_model=SpaceWeatherStatus)
