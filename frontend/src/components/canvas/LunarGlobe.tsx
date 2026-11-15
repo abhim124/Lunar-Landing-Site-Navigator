@@ -533,6 +533,33 @@ function SunEarthVectors() {
   const { ephem } = useCurrentEphemeris();
   const group = useRef<THREE.Group>(null);
   const terrainVersion = useTerrainVersion();
+  const evaluation = useMissionStore((s) => s.evaluation);
+  const scrubHour = useMissionStore((s) => s.scrubHour);
+  const sunHalo = useRef<THREE.MeshBasicMaterial>(null);
+  const earthHalo = useRef<THREE.MeshBasicMaterial>(null);
+
+  // Whole-mission Sun / Earth paths across the local sky (one point per 30-min trajectory sample),
+  // split at the timeline position: elapsed part bright, upcoming part faint + dashed.
+  const paths = useMemo(() => {
+    if (!selected || !evaluation) return null;
+    if (Math.abs(evaluation.site.lat - selected.lat) > 1e-4 || Math.abs(evaluation.site.lon - selected.lon) > 1e-4) return null;
+    const samples = evaluation.trajectory.samples;
+    if (samples.length < 2) return null;
+    const sunCol = (s: (typeof samples)[number]) => (s.sun_visible_fraction > 0.01 ? SUN_LIT : SUN_DARK);
+    const earthCol = (s: (typeof samples)[number]) => (s.earth_visible && s.earth_el_deg >= minEl ? EARTH_OK : EARTH_LOST);
+    const build = (pick: 'sun' | 'earth') => {
+      const pts = samples.map((s) =>
+        pick === 'sun' ? azElToDirection(selected.lat, selected.lon, s.sun_az_deg, s.sun_el_deg) : azElToDirection(selected.lat, selected.lon, s.earth_az_deg, s.earth_el_deg),
+      );
+      const cols = samples.map((s) => (pick === 'sun' ? sunCol(s) : earthCol(s)));
+      const hours = samples.map((s) => s.hours_from_start);
+      return { pts, cols, hours };
+    };
+    const sun = build('sun');
+    // small beads at each whole day along the Sun's path, so its progress is easy to read
+    const dayBeads = sun.hours.flatMap((h, i) => (i > 0 && Math.abs(h % 24) < 1e-6 ? [{ pos: sun.pts[i], day: h / 24 }] : []));
+    return { sun: { ...sun, dayBeads }, earth: build('earth') };
+  }, [selected, evaluation, minEl]);
 
   const origin = useMemo(
     () => (selected ? latLonToVec3(selected.lat, selected.lon, surfaceRadius(selected.lat, selected.lon, 0.0003)) : null),
@@ -544,10 +571,16 @@ function SunEarthVectors() {
     if (!group.current || !origin) return;
     const d = state.camera.position.distanceTo(group.current.position);
     group.current.scale.setScalar(clamp(d * 0.32, 0.004, 0.5));
+    // gentle glow pulse on the Sun / Earth markers
+    const t = state.clock.elapsedTime;
+    if (sunHalo.current) sunHalo.current.opacity = 0.28 + 0.14 * Math.sin(t * 2.4);
+    if (earthHalo.current) earthHalo.current.opacity = 0.28 + 0.14 * Math.sin(t * 2.4 + 1.6);
   });
 
   if (!selected || !ephem || !origin) return null;
   const sunDir = azElToDirection(selected.lat, selected.lon, ephem.sunAzDeg, ephem.sunElDeg);
+  const sunTrack = paths ? paths.sun : null;
+  const earthTrack = paths ? paths.earth : null;
   const earthDir = azElToDirection(selected.lat, selected.lon, ephem.earthAzDeg, ephem.earthElDeg);
   const sunLit = ephem.sunVisibleFraction > 0.01;
   const earthOk = ephem.earthAboveCutoff;
@@ -555,12 +588,29 @@ function SunEarthVectors() {
   return (
     <group ref={group} position={origin}>
       <Line points={[[0, 0, 0], sunDir]} color={sunLit ? '#fbbf24' : '#78716c'} lineWidth={2} transparent opacity={0.95} />
-      <mesh position={sunDir}>
-        <sphereGeometry args={[0.03, 16, 16]} />
-        <meshBasicMaterial color={sunLit ? '#fde68a' : '#a8a29e'} toneMapped={false} />
+      {sunTrack && <TrackLines track={sunTrack} scrubHour={scrubHour} />}
+      {sunTrack?.dayBeads.map((b) => (
+        <group key={b.day} position={b.pos}>
+          <mesh>
+            <sphereGeometry args={[0.018, 10, 10]} />
+            <meshBasicMaterial color="#fcd34d" toneMapped={false} transparent opacity={0.9} depthTest={false} />
+          </mesh>
+          <Html center zIndexRange={[20, 0]} style={{ pointerEvents: 'none' }}>
+            <div className="mt-4 font-mono text-[9px] text-amber-200/80">d{b.day}</div>
+          </Html>
+        </group>
+      ))}
+      {earthTrack && <TrackLines track={earthTrack} scrubHour={scrubHour} />}
+      <mesh position={sunDir} renderOrder={31}>
+        <sphereGeometry args={[0.06, 24, 24]} />
+        <meshBasicMaterial color={sunLit ? '#fde68a' : '#a8a29e'} toneMapped={false} depthTest={false} />
+      </mesh>
+      <mesh position={sunDir} renderOrder={31}>
+        <sphereGeometry args={[0.12, 24, 24]} />
+        <meshBasicMaterial ref={sunHalo} color={sunLit ? '#fbbf24' : '#78716c'} toneMapped={false} transparent opacity={0.3} depthWrite={false} depthTest={false} blending={THREE.AdditiveBlending} />
       </mesh>
       <Html position={sunDir} zIndexRange={[21, 0]} style={{ pointerEvents: 'none' }}>
-        <div className="ml-2 whitespace-nowrap rounded bg-slate-950/80 px-1.5 py-0.5 font-mono text-[10px] text-amber-200 ring-1 ring-amber-500/30">
+        <div className="ml-3 whitespace-nowrap rounded bg-slate-950/85 px-1.5 py-0.5 font-mono text-[11px] font-semibold text-amber-200 ring-1 ring-amber-400/60">
           ☉ {ephem.sunElDeg.toFixed(2)}° · {(ephem.sunVisibleFraction * 100).toFixed(0)}% disk
         </div>
       </Html>
@@ -575,16 +625,45 @@ function SunEarthVectors() {
         transparent
         opacity={0.95}
       />
-      <mesh position={earthDir}>
-        <sphereGeometry args={[0.035, 16, 16]} />
-        <meshBasicMaterial color={earthOk ? '#7dd3fc' : '#fda4af'} toneMapped={false} />
+      <mesh position={earthDir} renderOrder={31}>
+        <sphereGeometry args={[0.065, 24, 24]} />
+        <meshBasicMaterial color={earthOk ? '#7dd3fc' : '#fda4af'} toneMapped={false} depthTest={false} />
+      </mesh>
+      <mesh position={earthDir} renderOrder={31}>
+        <sphereGeometry args={[0.13, 24, 24]} />
+        <meshBasicMaterial ref={earthHalo} color={earthOk ? '#38bdf8' : '#f43f5e'} toneMapped={false} transparent opacity={0.3} depthWrite={false} depthTest={false} blending={THREE.AdditiveBlending} />
       </mesh>
       <Html position={earthDir} zIndexRange={[21, 0]} style={{ pointerEvents: 'none' }}>
-        <div className="ml-2 whitespace-nowrap rounded bg-slate-950/80 px-1.5 py-0.5 font-mono text-[10px] text-sky-200 ring-1 ring-sky-500/30">
+        <div className="ml-3 whitespace-nowrap rounded bg-slate-950/85 px-1.5 py-0.5 font-mono text-[11px] font-semibold text-sky-200 ring-1 ring-sky-400/60">
           ⊕ {ephem.earthElDeg.toFixed(2)}° {earthOk ? '· link' : ephem.earthVisible ? `· < ${minEl}° cutoff` : '· occulted'}
         </div>
       </Html>
     </group>
+  );
+}
+
+const SUN_LIT = new THREE.Color('#fbbf24');
+const SUN_DARK = new THREE.Color('#57534e');
+const EARTH_OK = new THREE.Color('#38bdf8');
+const EARTH_LOST = new THREE.Color('#f43f5e');
+
+type Track = { pts: [number, number, number][]; cols: THREE.Color[]; hours: number[] };
+
+/** A body's path over the mission: travelled part bright and thick, the rest faint and dashed. Colour = lit/blocked (Sun) or link/no link (Earth). */
+function TrackLines({ track, scrubHour }: { track: Track; scrubHour: number }) {
+  const next = track.hours.findIndex((h) => h > scrubHour);
+  const cut = next === -1 ? track.hours.length - 1 : Math.max(1, next);
+  const past = { pts: track.pts.slice(0, cut + 1), cols: track.cols.slice(0, cut + 1) };
+  const future = { pts: track.pts.slice(cut), cols: track.cols.slice(cut) };
+  return (
+    <>
+      {past.pts.length >= 2 && (
+        <Line points={past.pts} vertexColors={past.cols} lineWidth={5} transparent opacity={1} toneMapped={false} depthTest={false} renderOrder={30} />
+      )}
+      {future.pts.length >= 2 && (
+        <Line points={future.pts} vertexColors={future.cols} lineWidth={2.5} dashed dashSize={0.03} gapSize={0.02} transparent opacity={0.7} toneMapped={false} depthTest={false} renderOrder={29} />
+      )}
+    </>
   );
 }
 
