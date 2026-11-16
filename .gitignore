@@ -18,6 +18,5 @@ __pycache__/
 backend/data/
 
 # Local tooling / OS
-.claude/
 .DS_Store
 *.log
