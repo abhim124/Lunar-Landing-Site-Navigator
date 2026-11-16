@@ -1,4 +1,3 @@
-import Anthropic from '@anthropic-ai/sdk';
 import { NextResponse } from 'next/server';
 import { ASSISTANT_SYSTEM_PROMPT } from '@/lib/assistantPrompt';
 import { AGENT_TOOLS, runAgentTool } from '@/lib/agentTools';
@@ -29,20 +28,62 @@ const AUDIENCE_REMINDER: Record<string, string> = {
     '\n\nAUDIENCE NOW: EXPERT MODE (mission planner). Be technical and precise: numbers with units, the data source or model behind each number and its assumptions, standard terms (DTE, PSR, WEH, terrain horizon, incidence angle).',
 };
 
-const MODEL = 'claude-haiku-5-5';
+// OpenRouter free models (OpenAI-compatible API). OpenRouter tries them in order if one is down or rate-limited.
+// Override with OPENROUTER_MODEL (comma-separated). All of these support tool calling.
+const MODELS = (process.env.OPENROUTER_MODEL || 'google/gemma-4-31b-it:free,nvidia/nemotron-3-ultra-550b-a55b:free,openrouter/free')
+  .split(',')
+  .map((m) => m.trim())
+  .filter(Boolean)
+  .slice(0, 3);
+const OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions';
+
+type ToolCall = { id: string; type: 'function'; function: { name: string; arguments: string } };
+type ChatMessage =
+  | { role: 'system' | 'user'; content: string }
+  | { role: 'assistant'; content: string | null; tool_calls?: ToolCall[] }
+  | { role: 'tool'; tool_call_id: string; content: string };
+interface ChatResponse {
+  choices?: { message?: { content?: string | null; tool_calls?: ToolCall[] }; finish_reason?: string }[];
+  error?: { message?: string; code?: number };
+}
+
+const TOOLS = AGENT_TOOLS.map((t) => ({ type: 'function' as const, function: { name: t.name, description: t.description, parameters: t.input_schema } }));
+
+async function chat(apiKey: string, messages: ChatMessage[], withTools: boolean): Promise<ChatResponse> {
+  const res = await fetch(OPENROUTER_URL, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+      'X-Title': 'Lunar Landing Site Navigator',
+    },
+    body: JSON.stringify({
+      model: MODELS[0],
+      models: MODELS, // fallbacks
+      messages,
+      max_tokens: 1500,
+      temperature: 0.3,
+      ...(withTools ? { tools: TOOLS, tool_choice: 'auto' } : {}),
+    }),
+    signal: AbortSignal.timeout(45_000),
+  });
+  const json = (await res.json().catch(() => ({}))) as ChatResponse;
+  if (!res.ok || json.error) throw new Error(`OpenRouter ${res.status}: ${json.error?.message ?? 'request failed'}`);
+  return json;
+}
 const OFFLINE: AssistantReply = { say: 'Hadfield is offline. Check the status cards.', details: '', action: '', highlight: 'none', error: true };
 
 /** Last 6 turns, starting with a user turn, with strictly alternating roles. */
-function sanitizeHistory(raw: unknown): Anthropic.MessageParam[] {
+function sanitizeHistory(raw: unknown): ChatMessage[] {
   if (!Array.isArray(raw)) return [];
   const turns = raw
     .filter((t): t is AssistantTurn => !!t && (t.role === 'user' || t.role === 'assistant') && typeof t.content === 'string' && t.content.trim() !== '')
     .slice(-6);
-  const out: Anthropic.MessageParam[] = [];
+  const out: { role: 'user' | 'assistant'; content: string }[] = [];
   for (const t of turns) {
     if (out.length === 0 && t.role !== 'user') continue; // drop leading assistant turns
     const prev = out[out.length - 1];
-    if (prev && prev.role === t.role) prev.content = `${prev.content as string}\n${t.content}`; // merge same-role neighbours
+    if (prev && prev.role === t.role) prev.content = `${prev.content}\n${t.content}`; // merge same-role neighbours
     else out.push({ role: t.role, content: t.content });
   }
   // The new question is appended as a user turn, so history must end on an assistant turn.
@@ -90,8 +131,8 @@ function parseReply(text: string): AssistantReply {
 
 export async function POST(req: Request) {
   try {
-    const apiKey = process.env.ANTHROPIC_API_KEY;
-    if (!apiKey) throw new Error('ANTHROPIC_API_KEY is not set');
+    const apiKey = process.env.OPENROUTER_API_KEY;
+    if (!apiKey) throw new Error('OPENROUTER_API_KEY is not set');
 
     const body = (await req.json()) as Partial<AssistantRequest>;
     const question = typeof body.question === 'string' ? body.question.trim() : '';
@@ -99,45 +140,34 @@ export async function POST(req: Request) {
 
     const ctx = sanitizeContext(body.context);
     const actions: AgentAction[] = [];
-    const client = new Anthropic({ apiKey });
     const mode = (body.missionState as { displayMode?: string } | undefined)?.displayMode;
     const system = `${ASSISTANT_SYSTEM_PROMPT}\n${JSON.stringify(body.missionState ?? {}, null, 2)}${AUDIENCE_REMINDER[mode ?? ''] ?? ''}`;
-    const messages: Anthropic.MessageParam[] = [...sanitizeHistory(body.history), { role: 'user', content: question }];
+    const messages: ChatMessage[] = [{ role: 'system', content: system }, ...sanitizeHistory(body.history), { role: 'user', content: question }];
 
     // Manual tool loop: data tools run here against the backend; UI tools are queued as actions for the browser.
-    let response: Anthropic.Message | null = null;
+    let text = '';
     for (let round = 0; round <= MAX_TOOL_ROUNDS; round++) {
-      response = await client.messages.create({
-        model: MODEL,
-        max_tokens: 1500,
-        // Haiku 5.5 rejects non-default `temperature` (400), so it is omitted; thinking stays off to keep voice latency low.
-        thinking: { type: 'disabled' },
-        system,
-        tools: round < MAX_TOOL_ROUNDS ? AGENT_TOOLS : [],
-        messages,
-      });
-      if (response.stop_reason === 'refusal') throw new Error('Model declined the request');
-      if (response.stop_reason !== 'tool_use') break;
-
-      messages.push({ role: 'assistant', content: response.content });
-      const results: Anthropic.ToolResultBlockParam[] = [];
-      for (const block of response.content) {
-        if (block.type !== 'tool_use') continue;
-        try {
-          const r = await runAgentTool(block.name, block.input, ctx, actions);
-          results.push({ type: 'tool_result', tool_use_id: block.id, content: r.content, is_error: r.isError });
-        } catch (err) {
-          results.push({ type: 'tool_result', tool_use_id: block.id, content: `Tool failed: ${err instanceof Error ? err.message : String(err)}`, is_error: true });
-        }
+      const msg = (await chat(apiKey, messages, round < MAX_TOOL_ROUNDS)).choices?.[0]?.message;
+      const calls = msg?.tool_calls ?? [];
+      if (!calls.length) {
+        text = msg?.content ?? '';
+        break;
       }
-      messages.push({ role: 'user', content: results });
+      messages.push({ role: 'assistant', content: msg?.content ?? null, tool_calls: calls });
+      for (const call of calls) {
+        let content: string;
+        try {
+          const input = call.function.arguments ? JSON.parse(call.function.arguments) : {};
+          const r = await runAgentTool(call.function.name, input, ctx, actions);
+          content = r.isError ? `Error: ${r.content}` : r.content;
+        } catch (err) {
+          content = `Tool failed: ${err instanceof Error ? err.message : String(err)}`;
+        }
+        messages.push({ role: 'tool', tool_call_id: call.id, content });
+      }
     }
 
-    const text = (response?.content ?? [])
-      .filter((b): b is Anthropic.TextBlock => b.type === 'text')
-      .map((b) => b.text)
-      .join('');
-    if (!text.trim() && actions.length === 0) throw new Error(`Empty reply (stop_reason=${response?.stop_reason})`);
+    if (!text.trim() && actions.length === 0) throw new Error('Empty reply');
     const reply = text.trim() ? parseReply(text) : { say: 'Done.', details: '', action: '', highlight: 'none' as const };
     return NextResponse.json({ ...reply, actions });
   } catch (err) {

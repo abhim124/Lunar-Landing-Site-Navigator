@@ -1,0 +1,8 @@
+# Files NOT uploaded by `gcloud run deploy --source backend` (data/ IS uploaded: the image needs it).
+.gcloudignore
+.env
+.env.*
+.venv/
+__pycache__/
+*.pyc
+README.md

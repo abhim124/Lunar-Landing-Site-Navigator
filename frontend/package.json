@@ -10,7 +10,6 @@
     "fetch:textures": "mkdir -p public/textures && curl -fL -o public/textures/lroc_color_2k.jpg https://svs.gsfc.nasa.gov/vis/a000000/a004700/a004720/lroc_color_2k.jpg"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^1.8.0",
     "@react-three/drei": "^10.0.0",
     "@react-three/fiber": "^9.1.0",
     "lucide-react": "^0.469.0",
