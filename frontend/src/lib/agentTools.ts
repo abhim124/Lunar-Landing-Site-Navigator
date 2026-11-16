@@ -1,3 +1,4 @@
+import type Anthropic from '@anthropic-ai/sdk';
 import { CURATED_SITES } from '@/lib/siteRegistry';
 import type { AgentAction, AgentContext, AgentPanel } from '@/types/assistant';
 import { LAYER_IDS, type LayerId } from '@/types/mission';
@@ -13,14 +14,7 @@ const API_BASE = (process.env.NEXT_PUBLIC_API_BASE ?? 'http://localhost:8000').r
 
 const PANELS: AgentPanel[] = ['calendar', 'compare', 'verdict', 'alternatives', 'validation', 'power', 'comms'];
 
-/** Tool definition (name + JSON Schema); converted to the OpenAI/OpenRouter function format in the route. */
-export interface AgentToolDef {
-  name: string;
-  description: string;
-  input_schema: Record<string, unknown>;
-}
-
-export const AGENT_TOOLS: AgentToolDef[] = [
+export const AGENT_TOOLS: Anthropic.Tool[] = [
   {
     name: 'find_best_site',
     description:

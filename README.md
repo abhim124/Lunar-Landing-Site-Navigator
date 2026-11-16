@@ -8,7 +8,7 @@ Pick any site and any date and the app answers "is it viable?". If not, it answe
 - **Verdict card** shows sunlit %, longest darkness, time to sunset and Earthset, and Earth contact. Every number has a data-source label behind an (i) button.
 - **Nearest viable alternative** finds the best pad within 5 km and the best date within ±14 days.
 - **Timeline**, **365-day launch-slip calendar**, and a **validation panel** against JPL Horizons and mission history.
-- **Space weather** from NASA DONKI, plus **Hadfield**, a voice-enabled mission assistant (a free OpenRouter model via `/api/assistant`; needs `OPENROUTER_API_KEY` in `frontend/.env.local`).
+- **Space weather** from NASA DONKI, plus **Hadfield**, a voice-enabled mission assistant (Claude Haiku via `/api/assistant`; needs `ANTHROPIC_API_KEY` in `frontend/.env.local`).
 
 ```
 frontend/   Next.js 15 + React Three Fiber (3D globe, UI)
@@ -134,4 +134,4 @@ See [`backend/README.md`](backend/README.md) for every dataset, its resolution, 
 - **Rock abundance:** Diviner rock abundance covers ±60° only, so polar sites show "No data".
 - **Temperature:** uses the Diviner global cumulative product (0.5° bins), not the 240 m seasonal product.
 - **Older Artemis regions:** the five 2022 regions use approximate region centres and are flagged "≈" in the UI.
-- **Hadfield:** shows "Hadfield is offline" until `OPENROUTER_API_KEY` is set in `frontend/.env.local` (restart the dev server after adding it).
+- **Hadfield:** shows "Hadfield is offline" until `ANTHROPIC_API_KEY` is set in `frontend/.env.local` (restart the dev server after adding it).
