@@ -131,8 +131,8 @@ const fmtSigned = (n: number) => `${n > 0 ? '+' : ''}${Math.round(n)}`;
 
 function Spine({ icon, label, children }: { icon: ReactNode; label: string; children?: ReactNode }) {
   return (
-    <div className="relative flex flex-col items-center justify-center self-stretch">
-      <span aria-hidden className="absolute inset-y-[-10px] left-1/2 w-px -translate-x-1/2 bg-gradient-to-b from-zinc-800 via-zinc-600 to-zinc-800" />
+    <div className="relative order-first col-span-2 flex flex-col items-center justify-center self-stretch md:order-none md:col-span-1">
+      <span aria-hidden className="absolute inset-y-[-10px] hidden md:block left-1/2 w-px -translate-x-1/2 bg-gradient-to-b from-zinc-800 via-zinc-600 to-zinc-800" />
       <span className="relative z-10 inline-flex items-center gap-1.5 rounded-full border border-zinc-700 bg-zinc-900 px-3 py-1.5 text-center text-xs uppercase tracking-wider text-zinc-200">
         {icon}
         {label}
@@ -190,6 +190,9 @@ function Track({ pct, fill, toward, empty, className = '', style }: { pct: numbe
 }
 
 /* ═══════════════════════════════ rows ═══════════════════════════════ */
+
+/** Phones: the label (spine) spans both columns above Earth | Moon. md+: Earth | spine | Moon. */
+const ROW = 'grid grid-cols-2 items-center gap-x-3 gap-y-2 md:grid-cols-[1fr_190px_1fr] md:gap-4';
 
 const W = 360; // viewBox width of each topography half
 const H = 120;
@@ -353,7 +356,7 @@ export default function EnvComparisonModal({ selectedSite, presets = [], activeP
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
-        className="max-h-[92vh] w-full max-w-5xl overflow-y-auto rounded-xl border border-zinc-800 bg-zinc-950/95 p-6 font-mono text-zinc-100 shadow-2xl"
+        className="max-h-[92svh] w-full max-w-5xl overflow-y-auto rounded-xl border border-zinc-800 bg-zinc-950/95 p-4 font-mono md:p-6 text-zinc-100 shadow-2xl"
       >
         {/* header */}
         <div className="mb-5 flex flex-wrap items-start gap-3 border-b border-zinc-800 pb-4">
@@ -402,54 +405,54 @@ export default function EnvComparisonModal({ selectedSite, presets = [], activeP
         </div>
 
         {/* column headings */}
-        <div className="mb-3 grid grid-cols-[1fr_190px_1fr] items-center gap-4 text-[10px] uppercase tracking-[0.2em]">
+        <div className={`mb-3 ${ROW} text-[10px] uppercase tracking-[0.2em]`}>
           <p className="text-right text-sky-300">◀ Earth baseline</p>
-          <span />
+          <span className="hidden md:block" />
           <p className="text-amber-300">Lunar target ▶</p>
         </div>
 
         <div className="space-y-5">
           {/* Row 1 — topography */}
-          <div className="grid grid-cols-[1fr_190px_1fr] items-center gap-4">
+          <div className={ROW}>
             <TopographyRow site={site} profile={profile} />
           </div>
 
           {/* Row 2 — atmosphere */}
-          <div className="grid grid-cols-[1fr_190px_1fr] items-center gap-4">
-            <div className="flex items-center gap-3">
-              <span className="shrink-0 text-right text-xs text-sky-200">101.3 kPa (Breathable)</span>
+          <div className={ROW}>
+            <div className="flex flex-col items-end gap-1 md:flex-row md:items-center md:gap-3">
+              <span className="text-right text-xs md:shrink-0 text-sky-200">101.3 kPa (Breathable)</span>
               <Track pct={100} toward="right" fill="bg-gradient-to-l from-cyan-300 to-sky-600 shadow-[0_0_12px_rgba(34,211,238,0.6)]" />
             </div>
             <Spine icon={<Wind className="h-3.5 w-3.5" />} label="Atmosphere" />
-            <div className="flex items-center gap-3">
+            <div className="flex flex-col-reverse items-start gap-1 md:flex-row md:items-center md:gap-3">
               <Track pct={0} toward="left" fill="" empty />
-              <span className="shrink-0 text-xs text-zinc-400">0 kPa (Hard Vacuum)</span>
+              <span className="text-xs text-zinc-400 md:shrink-0">0 kPa (Hard Vacuum)</span>
             </div>
           </div>
 
           {/* Row 3 — gravity */}
-          <div className="grid grid-cols-[1fr_190px_1fr] items-center gap-4">
-            <div className="flex items-center gap-3">
-              <span className="shrink-0 text-right text-xs text-zinc-200">1.0g (Standard)</span>
+          <div className={ROW}>
+            <div className="flex flex-col items-end gap-1 md:flex-row md:items-center md:gap-3">
+              <span className="text-right text-xs md:shrink-0 text-zinc-200">1.0g (Standard)</span>
               <Track pct={100} toward="right" fill="bg-gradient-to-l from-zinc-100 to-zinc-400" />
             </div>
             <Spine icon={<Orbit className="h-3.5 w-3.5" />} label="Gravity" />
-            <div className="flex items-center gap-3">
+            <div className="flex flex-col-reverse items-start gap-1 md:flex-row md:items-center md:gap-3">
               <Track pct={16.6} toward="left" fill="bg-zinc-500" />
-              <span className="shrink-0 text-xs text-zinc-300">0.16g (1/6th Earth)</span>
+              <span className="text-xs text-zinc-300 md:shrink-0">0.16g (1/6th Earth)</span>
             </div>
           </div>
 
           {/* Row 4 — temperature extremes */}
-          <div className="grid grid-cols-[1fr_190px_1fr] items-center gap-4">
-            <div className="flex items-center gap-3">
-              <span className="shrink-0 text-right text-xs text-sky-200">−50°C to +50°C</span>
+          <div className={ROW}>
+            <div className="flex flex-col items-end gap-1 md:flex-row md:items-center md:gap-3">
+              <span className="text-right text-xs md:shrink-0 text-sky-200">−50°C to +50°C</span>
               <div className="relative h-3.5 w-full rounded-full border border-zinc-800 bg-zinc-900/90">
                 <div className="absolute inset-y-0.5 left-[32.5%] w-[35%] rounded-full bg-gradient-to-r from-sky-500/70 to-sky-300/70" />
               </div>
             </div>
             <Spine icon={<Thermometer className="h-3.5 w-3.5" />} label="Temperature extremes" />
-            <div className="flex items-center gap-3">
+            <div className="flex flex-col-reverse items-start gap-1 md:flex-row md:items-center md:gap-3">
               <div className="w-full">
                 <TemperatureWave minC={minC} maxC={maxC} />
                 <div className="mt-0.5 flex justify-between text-[8px] text-zinc-600">
@@ -458,7 +461,7 @@ export default function EnvComparisonModal({ selectedSite, presets = [], activeP
                   <span>+{T_MAX}°C</span>
                 </div>
               </div>
-              <span className="flex shrink-0 items-center gap-1 text-xs" style={{ color: tempColor((minC + maxC) / 2) }}>
+              <span className="flex flex-wrap items-center gap-1 text-xs md:shrink-0" style={{ color: tempColor((minC + maxC) / 2) }}>
                 {Math.round(minC)}°C to {maxC > 0 ? '+' : ''}
                 {Math.round(maxC)}°C
                 <Tag p={site.provenance?.temperature} />
@@ -467,20 +470,20 @@ export default function EnvComparisonModal({ selectedSite, presets = [], activeP
           </div>
 
           {/* Row 5 — radiation */}
-          <div className="grid grid-cols-[1fr_190px_1fr] items-center gap-4">
-            <div className="flex items-center gap-3">
-              <span className="shrink-0 text-right text-xs text-emerald-300">Safe / Protected (Magnetosphere)</span>
+          <div className={ROW}>
+            <div className="flex flex-col items-end gap-1 md:flex-row md:items-center md:gap-3">
+              <span className="text-right text-xs md:shrink-0 text-emerald-300">Safe / Protected (Magnetosphere)</span>
               <Track pct={100} toward="right" fill="bg-gradient-to-l from-emerald-300 to-emerald-600" />
             </div>
             <Spine icon={<Radiation className="h-3.5 w-3.5" />} label="Radiation" />
-            <div className="flex items-center gap-3">
+            <div className="flex flex-col-reverse items-start gap-1 md:flex-row md:items-center md:gap-3">
               <Track
                 pct={exposure}
                 toward="left"
                 fill="bg-gradient-to-r from-amber-400 via-orange-500 to-red-600"
                 style={{ animation: `env-pulse ${pulseS}s ease-in-out infinite` }}
               />
-              <span className="flex shrink-0 items-center gap-1 text-xs text-orange-300">
+              <span className="flex flex-wrap items-center gap-1 text-xs text-orange-300 md:shrink-0">
                 {radiation}
                 <Tag p={site.provenance?.radiation} />
               </span>

@@ -52,8 +52,8 @@ export function VerdictCard() {
   return (
     <section className={`${PANEL} rounded-2xl shadow-2xl shadow-black/60`} aria-label="Mission verdict">
       <div className="grid grid-cols-2 items-start gap-3 p-3 xl:grid-cols-[1.5fr_1fr_1fr_1fr_1.5fr]">
-        {/* Column 1 — verdict badge + reasons */}
-        <header className="min-w-0">
+        {/* Column 1 — verdict badge + reasons (full width on phones) */}
+        <header className="col-span-2 min-w-0 sm:col-span-1">
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
               <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">Mission Verdict</p>
@@ -159,8 +159,8 @@ export function VerdictCard() {
             {/* Column 4 — surface temperature (all modes) */}
             <TemperatureTile ev={ev} />
 
-            {/* Column 5 — nearest viable alternative */}
-            <div className="min-w-0">
+            {/* Column 5 — nearest viable alternative (full width on phones) */}
+            <div className="col-span-2 min-w-0 sm:col-span-1">
               {(ev.overall_status !== 'GO' || altStatus !== 'idle') && <NearestAlternativeCard />}
               {ev.overall_status === 'GO' && altStatus === 'idle' && (
                 <button

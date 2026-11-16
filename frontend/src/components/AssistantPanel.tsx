@@ -463,18 +463,18 @@ export function AssistantPanel() {
 
   return (
     <aside
-      className={`${PANEL} flex h-[560px] flex-col overflow-hidden rounded-2xl shadow-2xl shadow-black/60 xl:absolute xl:inset-0 xl:h-auto`}
+      className={`${PANEL} flex h-[min(560px,80svh)] flex-col overflow-hidden rounded-2xl shadow-2xl shadow-black/60 xl:absolute xl:inset-0 xl:h-auto`}
       aria-label="Hadfield mission assistant"
     >
       {/* header */}
-      <header className="flex items-center gap-2 border-b border-slate-800/80 px-3 py-2">
+      <header className="flex items-center gap-1.5 border-b sm:gap-2 border-slate-800/80 px-3 py-2">
         <div className="flex min-w-0 flex-1 items-center gap-2">
-          <span className="relative grid h-8 w-8 shrink-0 place-items-center rounded-full bg-sky-500/15 text-sky-300 ring-1 ring-sky-400/40">
+          <span className="relative hidden h-8 w-8 shrink-0 place-items-center rounded-full bg-sky-500/15 sm:grid text-sky-300 ring-1 ring-sky-400/40">
             <MicIcon className="h-4 w-4" />
             {(listening || pending) && <span className="absolute inset-0 animate-ping rounded-full ring-2 ring-sky-400/50" />}
           </span>
           <div className="min-w-0">
-            <h2 className="font-mono text-sm font-bold tracking-[0.2em] text-slate-50">HADFIELD</h2>
+            <h2 className="truncate font-mono text-sm font-bold tracking-[0.12em] text-slate-50 sm:tracking-[0.2em]">HADFIELD</h2>
             <p className="truncate font-mono text-[10px] text-slate-500" title={siteName ?? undefined}>
               {siteName ?? 'No site selected'} · {epochUTC.slice(0, 16).replace('T', ' ')}Z
             </p>
@@ -484,7 +484,7 @@ export function AssistantPanel() {
           aria-label="Mission phase"
           value={phase}
           onChange={(e) => setPhase(e.target.value as MissionPhase)}
-          className="min-h-11 rounded-lg bg-slate-900/80 px-2 text-xs text-slate-100 ring-1 ring-slate-700/80 outline-none focus:ring-sky-500/70"
+          className="min-h-11 max-w-[8.5rem] shrink-0 rounded-lg bg-slate-900/80 px-2 text-xs text-slate-100 ring-1 ring-slate-700/80 outline-none focus:ring-sky-500/70"
         >
           {PHASES.map((p) => (
             <option key={p.id} value={p.id}>

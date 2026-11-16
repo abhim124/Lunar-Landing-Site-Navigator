@@ -25,7 +25,7 @@ export function Term({ id, children }: { id: GlossaryId; children?: ReactNode })
         <span
           id={tipId}
           role="tooltip"
-          className="absolute bottom-full left-0 z-50 mb-1.5 block w-64 rounded-lg bg-slate-950 p-2 text-left text-[11px] font-normal normal-case leading-snug tracking-normal text-slate-200 shadow-xl ring-1 ring-sky-500/40"
+          className="absolute bottom-full left-0 z-50 mb-1.5 block w-64 max-w-[calc(100vw-2rem)] rounded-lg bg-slate-950 p-2 text-left text-[11px] font-normal normal-case leading-snug tracking-normal text-slate-200 shadow-xl ring-1 ring-sky-500/40"
         >
           <span className="mb-0.5 block font-semibold text-sky-200">{g.term}</span>
           {g.plain}

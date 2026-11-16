@@ -24,7 +24,7 @@ export function InfoButton({
       aria-controls={controls}
       aria-label={open ? `Hide ${label}` : `Show ${label}`}
       title={open ? `Hide ${label}` : label}
-      className={`grid h-4 w-4 shrink-0 place-items-center rounded-full font-serif text-[10px] font-bold italic leading-none ring-1 transition-colors ${
+      className={`llsn-hit relative grid h-4 w-4 shrink-0 place-items-center rounded-full font-serif text-[10px] font-bold italic leading-none ring-1 transition-colors ${
         open ? 'bg-sky-400/90 text-slate-950 ring-sky-300' : 'text-slate-400 ring-slate-600 hover:text-slate-100 hover:ring-slate-400'
       } ${className}`}
     >

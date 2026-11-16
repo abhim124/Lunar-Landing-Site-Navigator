@@ -22,7 +22,7 @@ function useWidth<T extends HTMLElement>() {
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
-    const ro = new ResizeObserver(([e]) => setW(Math.max(280, Math.floor(e.contentRect.width))));
+    const ro = new ResizeObserver(([e]) => setW(Math.max(240, Math.floor(e.contentRect.width))));
     ro.observe(el);
     return () => ro.disconnect();
   }, []);
@@ -178,7 +178,7 @@ export function SolarPowerChart({ ev }: { ev: SiteEvaluationResponse }) {
       </div>
 
       {/* chart */}
-      <div ref={wrapRef} className="w-full">
+      <div ref={wrapRef} className="w-full min-w-0 overflow-hidden">
         <svg width={width} height={height} className="cursor-crosshair select-none" onClick={onPick} role="img" aria-label="Sun elevation, terrain horizon, panel power and temperature over the mission">
           {panels.map((p, i) => {
             const top = i * (PANEL_H + GAP) + GAP - 2;

@@ -407,7 +407,7 @@ function SitePins() {
                 onClick={() => selectCuratedSite(site.id)}
                 aria-label={`Select ${site.name}`}
                 title={site.name}
-                className="relative grid h-4 w-4 cursor-pointer place-items-center"
+                className="llsn-hit relative grid h-4 w-4 cursor-pointer place-items-center"
               >
                 <span
                   className={`absolute inset-0 rounded-full opacity-50 group-hover:animate-ping ${

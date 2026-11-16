@@ -93,3 +93,30 @@ body {
 }
 .llsn-best-day { animation: llsn-best-day-pulse 1.6s ease-in-out infinite; }
 @media (prefers-reduced-motion: reduce) { .llsn-best-day { animation: none; } }
+
+/* Touch screens: give small controls (ⓘ buttons, globe site markers) a ≈40 px tap area without changing their look. */
+@media (pointer: coarse) {
+  .llsn-hit::before {
+    content: '';
+    position: absolute;
+    inset: -12px;
+  }
+}
+
+/* No horizontal page scroll on narrow screens; iOS: don't auto-zoom text when rotating. */
+html {
+  -webkit-text-size-adjust: 100%;
+}
+body {
+  overflow-x: hidden;
+}
+
+/* iOS Safari zooms the page when a focused text field is under 16 px: keep typing fields at 16 px on touch screens. */
+@media (pointer: coarse) {
+  input:not([type]),
+  input[type='text'],
+  input[type='search'],
+  textarea {
+    font-size: 16px;
+  }
+}

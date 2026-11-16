@@ -15,7 +15,7 @@ import { SolarPowerChart } from './SolarPowerChart';
 
 function Card({ title, children, defaultOpen = true, className = '' }: { title: string; children: ReactNode; defaultOpen?: boolean; className?: string }) {
   return (
-    <details open={defaultOpen} className={`group rounded-xl border border-slate-800/80 bg-slate-900/50 p-2.5 ${className}`}>
+    <details open={defaultOpen} className={`group min-w-0 rounded-xl border border-slate-800/80 bg-slate-900/50 p-2.5 ${className}`}>
       <summary className="flex cursor-pointer list-none items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-400">
         <span className="inline-block transition-transform group-open:rotate-90">▸</span>
         {title}
@@ -150,7 +150,7 @@ function SlopeRoughnessCard({ ev }: { ev: SiteEvaluationResponse }) {
               {pass && fresh.max_slope_deg > thr && <span className="text-amber-300"> · steepest cell {fmtNum(fresh.max_slope_deg, 1)}° exceeds it</span>}
             </span>
           </div>
-          <dl className="mt-2 grid grid-cols-4 gap-2 font-mono text-xs tabular-nums">
+          <dl className="mt-2 grid grid-cols-2 gap-2 font-mono sm:grid-cols-4 text-xs tabular-nums">
             {[
               ['At pad', `${fmtNum(fresh.slope_at_point_deg, 1)}°`],
               ['Mean', `${fmtNum(fresh.mean_slope_deg, 1)}°`],
@@ -187,7 +187,7 @@ export function ExpertAnalysis() {
         {!ev ? (
           <p className="animate-pulse text-xs text-slate-500">Waiting for the site evaluation…</p>
         ) : (
-          <div className="grid gap-3 xl:grid-cols-2">
+          <div className="grid grid-cols-[minmax(0,1fr)] gap-3 xl:grid-cols-2">
             <Card title="Solar elevation, power & temperature" className="xl:col-span-2">
               <SolarPowerChart ev={ev} />
             </Card>

@@ -89,7 +89,7 @@ export function TopCommandPill() {
       <div
         className={`${PANEL} flex w-full flex-wrap items-center justify-start gap-x-2 gap-y-1.5 rounded-2xl px-2.5 py-1.5 shadow-2xl shadow-black/50 ${expanded ? '' : 'xl:flex-nowrap'}`}
       >
-        <div className="flex items-center gap-2 pr-1">
+        <div className="order-1 flex items-center gap-2 pr-1 sm:order-none">
           <span className="grid h-7 w-7 place-items-center rounded-full bg-gradient-to-br from-slate-200 to-slate-500 text-[11px] font-black text-slate-950 shadow-inner">
             LN
           </span>
@@ -98,7 +98,7 @@ export function TopCommandPill() {
 
         <select
           aria-label="Curated site"
-          className={`${fieldCls} max-w-[13rem]`}
+          className={`${fieldCls} order-2 min-w-0 flex-1 sm:order-none sm:max-w-[13rem] sm:flex-none`}
           value={s.selectedSite?.regionId ?? ''}
           onChange={(e) => e.target.value && s.selectCuratedSite(e.target.value)}
         >
@@ -119,7 +119,7 @@ export function TopCommandPill() {
           </optgroup>
         </select>
 
-        <label className="flex items-center gap-1.5">
+        <label className="order-5 flex min-w-[12rem] flex-1 items-center gap-1.5 sm:order-none sm:min-w-0 sm:flex-none">
           <span className={labelCls}>UTC</span>
           <input
             type="datetime-local"
@@ -127,11 +127,11 @@ export function TopCommandPill() {
             step={60}
             value={s.epochUTC.slice(0, 16)}
             onChange={(e) => e.target.value && s.setEpochUTC(`${e.target.value}:00Z`)}
-            className={`${fieldCls} font-mono`}
+            className={`${fieldCls} min-w-0 flex-1 font-mono sm:flex-none`}
           />
         </label>
 
-        <label className="flex items-center gap-1.5">
+        <label className="order-6 flex items-center gap-1.5 sm:order-none">
           <span className={labelCls}>Days</span>
           <input
             type="number"
@@ -147,18 +147,27 @@ export function TopCommandPill() {
         <button
           type="button"
           onClick={share}
-          className="h-8 rounded-lg bg-slate-100 px-3 text-xs font-semibold text-slate-950 hover:bg-white"
+          className="order-8 h-8 rounded-lg bg-slate-100 px-3 text-xs font-semibold text-slate-950 hover:bg-white"
         >
           Share
         </button>
 
-        <ModeSwitch />
+        <div className="order-7 sm:order-none">
+          <ModeSwitch />
+        </div>
 
-        <EnvCompareButton />
+        <div className="order-9 min-w-0 sm:order-none">
+          <EnvCompareButton />
+        </div>
 
-        <CapcomButton />
+        <div className="order-3 sm:order-none">
+          <CapcomButton />
+        </div>
 
-        <div className={expanded ? 'contents' : 'hidden'}>
+        {/* phones: force the date/duration onto their own row */}
+        <div aria-hidden className="order-4 h-0 basis-full sm:hidden" />
+
+        <div className={expanded ? 'order-10 flex w-full flex-wrap items-center gap-2 sm:order-none sm:contents' : 'hidden'}>
           <form onSubmit={submitCoords} className="flex items-center gap-1">
             <input
               aria-label="Latitude"

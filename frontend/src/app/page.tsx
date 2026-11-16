@@ -40,18 +40,23 @@ export default function MissionPage() {
       {/* Zone 1 — top bar */}
       <TopCommandPill />
 
-      {/* Zone 2 — verdict strip */}
+      {/* Zone 2 — verdict strip (on phones it follows the globe: see the order-* classes) */}
       {hasSite && (
-        <div className="flex flex-col gap-2 px-3">
+        <div className="order-2 flex flex-col gap-2 px-3 md:order-none">
           <PsrNotice />
           <VerdictCard />
         </div>
       )}
 
       {/* Zone 3 — view (globe + timeline) | Hadfield */}
-      <div className={`grid gap-3 px-3 ${assistantOpen ? 'xl:grid-cols-[2fr_1fr]' : ''}`}>
-        <div className="flex min-w-0 flex-col gap-3">
-          <div className={`relative overflow-hidden rounded-2xl ${hasSite ? 'h-[280px]' : 'h-[calc(100vh-88px)]'}`}>
+      {/* Below xl the wrapper dissolves (display: contents) so phones can order globe → verdict → Hadfield. */}
+      <div className={`contents xl:grid xl:gap-3 xl:px-3 ${assistantOpen ? 'xl:grid-cols-[2fr_1fr]' : ''}`}>
+        <div className="order-1 flex min-w-0 flex-col gap-3 px-3 md:order-none xl:px-0">
+          <div
+            className={`relative touch-none overflow-hidden rounded-2xl ${
+              hasSite ? 'h-[50svh] min-h-[260px] md:h-[min(360px,80svh)] xl:h-[280px]' : 'h-[calc(100svh-150px)] min-h-[320px] sm:h-[calc(100svh-88px)]'
+            }`}
+          >
             <LunarGlobe />
           </div>
           {hasSite && (
@@ -61,14 +66,14 @@ export default function MissionPage() {
           )}
         </div>
         {assistantOpen && (
-          <div className="relative min-w-0">
+          <div className="relative order-3 min-w-0 px-3 md:order-none xl:px-0">
             <AssistantPanel />
           </div>
         )}
       </div>
 
       {hasSite && (
-        <>
+        <div className="order-4 flex flex-col gap-3 md:order-none">
           {/* Expert only — engineering analysis */}
           <ExpertAnalysis />
 
@@ -77,7 +82,7 @@ export default function MissionPage() {
 
           {/* Zone 5 — footer */}
           <FooterZone />
-        </>
+        </div>
       )}
     </main>
   );
