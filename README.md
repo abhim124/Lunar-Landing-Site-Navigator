@@ -8,7 +8,7 @@ Pick any site and any date and the app answers "is it viable?". If not, it answe
 - **Verdict card** shows sunlit %, longest darkness, time to sunset and Earthset, and Earth contact. Every number has a data-source label behind an (i) button.
 - **Nearest viable alternative** finds the best pad within 5 km and the best date within ±14 days.
 - **Timeline**, **365-day launch-slip calendar**, and a **validation panel** against JPL Horizons and mission history.
-- **Space weather** from NASA DONKI, plus **Hadfield**, a voice-enabled mission assistant (Claude Haiku via `/api/assistant`; needs `ANTHROPIC_API_KEY` in `frontend/.env.local`).
+- **Space weather** from NASA DONKI, plus **Hadfield**, a voice-enabled mission assistant (Claude Haiku via `/api/assistant`; works out of the box, no key needed).
 
 ```
 frontend/   Next.js 15 + React Three Fiber (3D globe, UI)
@@ -48,9 +48,9 @@ Options:
 - `--no-5m` skips the 5 m site DEMs (about 120 MB).
 - `--synthetic` builds an offline analytic model instead of downloading the terrain. Use it only if you have no internet.
 
-### NASA API key (recommended)
+### NASA API key (optional)
 
-Space weather uses NASA DONKI. The shared `DEMO_KEY` is limited to 10 requests per hour.
+No key is needed. Space weather uses NASA DONKI through the shared `DEMO_KEY`, which is limited to 10 requests per hour. For more, add your own free key:
 
 1. Get a free key at https://api.nasa.gov.
 2. Copy the example file:
@@ -68,10 +68,9 @@ Space weather uses NASA DONKI. The shared `DEMO_KEY` is limited to 10 requests p
 ```bash
 cd frontend
 npm install
-cp .env.example .env.local
 ```
 
-`.env.local` points the app at `http://localhost:8000`. The Moon base texture is already in `public/textures/`. To re-download it, run `npm run fetch:textures`.
+No `.env.local` or API key is needed: the app talks to the backend at `http://localhost:8000`, and Hadfield, the assistant, uses the project's hosted relay, which keeps its key on the server. To use your own Anthropic key instead, copy `.env.example` to `.env.local` and set `ANTHROPIC_API_KEY`. The Moon base texture is already in `public/textures/`. To re-download it, run `npm run fetch:textures`.
 
 ## 3. Run it
 
@@ -134,4 +133,4 @@ See [`backend/README.md`](backend/README.md) for every dataset, its resolution, 
 - **Rock abundance:** Diviner rock abundance covers ±60° only, so polar sites show "No data".
 - **Temperature:** uses the Diviner global cumulative product (0.5° bins), not the 240 m seasonal product.
 - **Older Artemis regions:** the five 2022 regions use approximate region centres and are flagged "≈" in the UI.
-- **Hadfield:** shows "Hadfield is offline" until `ANTHROPIC_API_KEY` is set in `frontend/.env.local` (restart the dev server after adding it).
+- **Hadfield:** without a key of your own it uses the hosted relay, which is rate-limited (about 10 questions per 10 minutes per address). Set `ANTHROPIC_API_KEY` in `frontend/.env.local` to remove the limit.

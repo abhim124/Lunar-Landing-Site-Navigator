@@ -1,7 +1,8 @@
-import Anthropic from '@anthropic-ai/sdk';
+import type Anthropic from '@anthropic-ai/sdk';
 import { NextResponse } from 'next/server';
 import { ASSISTANT_SYSTEM_PROMPT } from '@/lib/assistantPrompt';
-import { AGENT_TOOLS, runAgentTool } from '@/lib/agentTools';
+import { runAgentTool } from '@/lib/agentTools';
+import { createHadfieldMessage } from '@/lib/hadfieldModel';
 import { ANOMALY_TYPES, type AnomalyType } from '@/lib/contingency';
 import {
   HIGHLIGHT_TARGETS,
@@ -13,7 +14,8 @@ import {
   type HighlightTarget,
 } from '@/types/assistant';
 
-// Server-only: the API key is read here and never sent to the browser.
+// Server-only: the API key (if any) is read in hadfieldModel.ts and never sent to the browser.
+// Without a key, model calls go through the hosted relay, so a fresh clone works with no setup.
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 // Tool turns call the mission backend (whole-pole search ≈ 1 s); allow headroom on Vercel.
@@ -29,7 +31,6 @@ const AUDIENCE_REMINDER: Record<string, string> = {
     '\n\nAUDIENCE NOW: EXPERT MODE (mission planner). Be technical and precise: numbers with units, the data source or model behind each number and its assumptions, standard terms (DTE, PSR, WEH, terrain horizon, incidence angle).',
 };
 
-const MODEL = 'claude-haiku-5-5';
 const OFFLINE: AssistantReply = { say: 'Hadfield is offline. Check the status cards.', details: '', action: '', highlight: 'none', error: true };
 
 /** Last 6 turns, starting with a user turn, with strictly alternating roles. */
@@ -90,16 +91,12 @@ function parseReply(text: string): AssistantReply {
 
 export async function POST(req: Request) {
   try {
-    const apiKey = process.env.ANTHROPIC_API_KEY;
-    if (!apiKey) throw new Error('ANTHROPIC_API_KEY is not set');
-
     const body = (await req.json()) as Partial<AssistantRequest>;
     const question = typeof body.question === 'string' ? body.question.trim() : '';
     if (!question) throw new Error('Empty question');
 
     const ctx = sanitizeContext(body.context);
     const actions: AgentAction[] = [];
-    const client = new Anthropic({ apiKey });
     const mode = (body.missionState as { displayMode?: string } | undefined)?.displayMode;
     const system = `${ASSISTANT_SYSTEM_PROMPT}\n${JSON.stringify(body.missionState ?? {}, null, 2)}${AUDIENCE_REMINDER[mode ?? ''] ?? ''}`;
     const messages: Anthropic.MessageParam[] = [...sanitizeHistory(body.history), { role: 'user', content: question }];
@@ -107,15 +104,7 @@ export async function POST(req: Request) {
     // Manual tool loop: data tools run here against the backend; UI tools are queued as actions for the browser.
     let response: Anthropic.Message | null = null;
     for (let round = 0; round <= MAX_TOOL_ROUNDS; round++) {
-      response = await client.messages.create({
-        model: MODEL,
-        max_tokens: 1500,
-        // Haiku 5.5 rejects non-default `temperature` (400), so it is omitted; thinking stays off to keep voice latency low.
-        thinking: { type: 'disabled' },
-        system,
-        tools: round < MAX_TOOL_ROUNDS ? AGENT_TOOLS : [],
-        messages,
-      });
+      response = await createHadfieldMessage({ system, messages, withTools: round < MAX_TOOL_ROUNDS });
       if (response.stop_reason === 'refusal') throw new Error('Model declined the request');
       if (response.stop_reason !== 'tool_use') break;
 
