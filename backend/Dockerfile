@@ -11,6 +11,9 @@ ENV PYTHONUNBUFFERED=1 \
 RUN useradd -m -u 1000 user
 WORKDIR /home/user/app
 
+# rasterio's bundled GDAL needs libexpat, which the slim image leaves out.
+RUN apt-get update && apt-get install -y --no-install-recommends libexpat1 && rm -rf /var/lib/apt/lists/*
+
 COPY requirements.txt .
 RUN pip install -r requirements.txt
 
